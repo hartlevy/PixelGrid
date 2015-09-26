@@ -1,0 +1,29 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "hart.levy@gmail.com",
+    "longName": "PixelGrid",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/icon.png",
+                "menuIcon": true,
+                "name": "iconPNG",
+                "type": "png"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "PixelGrid",
+    "targetPlatforms": [
+        "basalt"
+    ],
+    "uuid": "b515e15a-8fa8-4014-abf6-6375df579c7b",
+    "versionLabel": "1.1",
+    "watchapp": {
+        "watchface": true
+    }
+}
