@@ -9,6 +9,82 @@
     "resources": {
         "media": [
             {
+                "file": "images/bgarm4.png",
+                "name": "BG_ARM4",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm3.png",
+                "name": "BG_ARM3",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdraw4.png",
+                "name": "BG_FACE4",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdraw3.png",
+                "name": "BG_FACE3",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdraw2.png",
+                "name": "BG_FACE2",
+                "type": "png"
+            },
+            {
+                "file": "images/bgtop.png",
+                "name": "BG_TOP",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm1.png",
+                "name": "BG_ARM1",
+                "type": "png"
+            },
+            {
+                "file": "images/bgside2.png",
+                "name": "BG_SIDE2",
+                "type": "png"
+            },
+            {
+                "file": "images/bgside1.png",
+                "name": "BG_SIDE1",
+                "type": "png"
+            },
+            {
+                "file": "images/bgpm.png",
+                "name": "BG_PM",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdrar.png",
+                "name": "BG_FACE",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdate.png",
+                "name": "BG_DATE",
+                "type": "png"
+            },
+            {
+                "file": "images/bgcenter.png",
+                "name": "BG_CENTER",
+                "targetPlatforms": [
+                    "basalt"
+                ],
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm2.png",
+                "name": "BG_ARM2",
+                "targetPlatforms": [
+                    "basalt"
+                ],
+                "type": "png"
+            },
+            {
                 "file": "images/icon.png",
                 "menuIcon": true,
                 "name": "iconPNG",

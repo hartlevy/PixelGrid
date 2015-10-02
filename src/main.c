@@ -3,6 +3,14 @@
   
 static Window *s_main_window;
 static Layer *bg_layer, *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer;
+static BitmapLayer *s_arm1_layer, *s_arm2_layer,*s_center_layer, *s_face_layer; 
+static BitmapLayer *s_side1_layer, *s_side2_layer, *s_side3_layer, *s_side4_layer;
+static BitmapLayer *s_pm_layer, *s_pm2_layer, *s_datebg_layer, *s_top_layer, *s_top2_layer;
+static BitmapLayer  *s_face2_layer, *s_face3_layer, *s_face4_layer, *s_arm3_layer, *s_arm4_layer;
+static GBitmap *s_arm1_bitmap, *s_arm2_bitmap, *s_center_bitmap, *s_pm_bitmap;
+static GBitmap *s_datebg_bitmap, *s_face_bitmap;
+static GBitmap *s_side1_bitmap, *s_side2_bitmap, *s_top_bitmap;
+static GBitmap  *s_face2_bitmap, *s_face3_bitmap, *s_face4_bitmap, *s_arm3_bitmap, *s_arm4_bitmap;
 static int seconds_color;
 static int minutes_color;
 static int hours_color;
@@ -106,41 +114,7 @@ static void drawAliasLine(Layer *layer, uint8_t x0, uint8_t y0,uint8_t x1,uint8_
     int16_t dy = y1 - y0;
     float gradient = (float) dy / (float) dx;
     float intery = y0; // first y-intersection for the main loop    
-    
-  /*
-    // handle first endpoint
-    uint8_t xend = round(x0);
-    float yend = y0 + gradient * (xend - x0);
-    float xgap = rfpart(x0 + 0.5);
-    uint8_t xpxl1 = xend; // this will be used in the main loop
-    uint8_t ypxl1 = ipart(yend);
-    if(steep){
-        plot(layer, ypxl1,   xpxl1, rfpart(yend) * xgap, colorset, ctx);
-        plot(layer, ypxl1+1, xpxl1,  fpart(yend) * xgap, colorset, ctx);
-    }
-    else{
-        plot(layer, xpxl1, ypxl1  , rfpart(yend) * xgap, colorset, ctx)
-        plot(layer, xpxl1, ypxl1+1,  fpart(yend) * xgap, colorset, ctx)
-    }
-    float intery = yend + gradient // first y-intersection for the main loop
-    
-    // handle second endpoint
-    xend = round(x1);
-    yend = y1 + gradient * (xend - x1);
-    xgap = fpart(x1 + 0.5);
-    uint8_t xpxl2 = xend; //this will be used in the main loop
-    uint8_t ypxl2 = ipart(yend);
-    if(steep){
-        plot(layer, ypxl2,   xpxl2, rfpart(yend) * xgap, colorset, ctx);
-        plot(layer, ypxl2+1, xpxl2,  fpart(yend) * xgap, colorset, ctx);
-    }
-    else{
-        plot(layer, xpxl2, ypxl2  , rfpart(yend) * xgap, colorset, ctx)
-        plot(layer, xpxl2, ypxl2+1,  fpart(yend) * xgap, colorset, ctx)
-    }  
-  
-  /////*/
-    // main loop
+
     for (uint8_t x = x0; x <= x1; x++){
         if(steep){
             if(thick){
@@ -188,37 +162,37 @@ static float* createHandFloat(int32_t angle, int16_t length, int x, int y){
 }
 
 static void draw_digit(Layer *layer, uint8_t x, uint8_t y, uint8_t n, GContext *ctx){
-  if(n != 1){
+  if(true){
     fillPixel(layer, x, y, ctx);
   }
   if(n != 4){
     fillPixel(layer, x+1, y, ctx);
   }
-  if(true){
+  if(n != 1){
     fillPixel(layer, x+2, y, ctx);
   }
   
   if((n > 3 && n != 7) || n == 0){
     fillPixel(layer, x, y+1, ctx);
   }
-  if(n > 7){
+  if(n > 7 || n == 1){
     fillPixel(layer, x+1, y+1, ctx);
   }
-  if(n != 5 && n != 6){
+  if(n != 5 && n != 6 && n != 1){
     fillPixel(layer, x+2, y+1, ctx);
   }
   
   if(n % 2 == 0 && n != 4){
     fillPixel(layer, x, y+2, ctx);
   }
-  if(n > 1 && n < 7){
+  if(n > 0 && n < 7){
     fillPixel(layer, x+1, y+2, ctx);
   }
-  if(n != 2){
+  if(n != 2 && n!=1){
     fillPixel(layer, x+2, y+2, ctx);
   }
   
-  if(n != 1 && n != 4 && n != 7){
+  if(n != 4 && n != 7){
     fillPixel(layer, x, y+3, ctx);
     fillPixel(layer, x+1, y+3, ctx);    
   }
@@ -273,26 +247,10 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   
   // Draw A/P
   if(t->tm_hour >= 12){  
-    graphics_context_set_fill_color(ctx, GColorWhite); 
-    draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, 0, WIDTH-2, ctx);  
-  }
-  
+    graphics_context_set_fill_color(ctx, GColorYellow); 
+    draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, WIDTH-10, WIDTH-2, ctx);  
+  }  
 }
-
-/*static void minutes_update_proc(Layer *layer, GContext *ctx) {
-  GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
-  int16_t minute_hand_length = WIDTH / 2 - 6;
-  
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);
-  int32_t minute_angle = TRIG_MAX_ANGLE * t->tm_min / 60;
-  
-  //Create minute hand
-  GPoint minute_hand = createHand(minute_angle,minute_hand_length, center.x, center.y);
-  
-  // Draw hand
-  drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, ctx);  
-}*/
 
 static void draw_bg(Layer *this_layer, GContext *ctx) {  
   //fill bg
@@ -326,16 +284,14 @@ static void draw_bg(Layer *this_layer, GContext *ctx) {
   }
 }
 
-static void battery_update_proc(Layer *layer, GContext *ctx) {
-  // Write to buffer and display
-  
+static void battery_update_proc(Layer *layer, GContext *ctx) {  
   BatteryChargeState state = battery_state_service_peek();
   
   uint8_t charge = state.charge_percent;
   GColor charge_color;
   GColor case_color = GColorWhite;  
   int bat_x = 1;
-  int bat_y = WIDTH + 2;  
+  int bat_y = WIDTH + 3;  
     
   if(state.is_plugged){
     case_color = GColorGreen;
@@ -360,6 +316,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
     fillPixel(layer, bat_x + i + 1, bat_y+1, ctx);    
   }
   
+  //Charge icon
   if(state.is_charging){
     graphics_context_set_fill_color(ctx, GColorYellow); 
     draw_shape(layer, CHARGE_POINTS.points, CHARGE_POINTS.num_points, bat_x, bat_y-1, ctx);           
@@ -368,14 +325,15 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 
 static void bt_update_proc(Layer *layer, GContext *ctx) {
   bool connected = bluetooth_connection_service_peek();
-  int bt_x = WIDTH - 6;
-  int bt_y = WIDTH - 4; 
+  int bt_x = 1;
+  int bt_y = WIDTH - 3; 
   
   if(connected){
-    graphics_context_set_fill_color(ctx, GColorWhite);           
+    graphics_context_set_fill_color(ctx, GColorBlueMoon);           
     draw_shape(layer, BT_LOGO_POINTS.points, BT_LOGO_POINTS.num_points, bt_x, bt_y, ctx);               
   }
 }
+
 
 static void bt_handler(bool connected) {
   if(!connected){
@@ -404,14 +362,51 @@ static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   }     
 }
 
+static void create_bitmap_add_layer(GBitmap *bitmap, BitmapLayer *layer, Layer *window_layer,
+                                    int16_t x, int16_t y, int16_t w, int16_t h, uint32_t resource_id){
+    bitmap = gbitmap_create_with_resource(resource_id);  
+    layer = bitmap_layer_create(GRect(x, y, w, h));
+    bitmap_layer_set_background_color(layer,GColorBlack);
+    bitmap_layer_set_bitmap(layer, bitmap);  
+    layer_add_child(window_layer, bitmap_layer_get_layer(layer));  
+}
+
+static void destroyBitmap( BitmapLayer *layer, GBitmap *bitmap){
+    layer_remove_from_parent(bitmap_layer_get_layer(layer));  
+    bitmap_layer_destroy(layer);
+    gbitmap_destroy(bitmap);
+}
+
+
 static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   
-  //create bg layer 
+/*  //create bg layer 
   bg_layer = layer_create(bounds);
   layer_set_update_proc(bg_layer, draw_bg);
   layer_add_child(window_layer, bg_layer);
+  */
+  
+  //create bg layers
+  create_bitmap_add_layer(s_arm1_bitmap, s_arm1_layer, window_layer, RECTWIDTH*17,0,RECTWIDTH*3,RECTWIDTH*16,RESOURCE_ID_BG_ARM1);
+  create_bitmap_add_layer(s_arm2_bitmap, s_arm2_layer, window_layer, RECTWIDTH*17,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*19,RESOURCE_ID_BG_ARM2);
+  create_bitmap_add_layer(s_arm3_bitmap, s_arm3_layer, window_layer, RECTWIDTH*20,RECTWIDTH*16,RECTWIDTH*16,RECTWIDTH*3, RESOURCE_ID_BG_ARM3);  
+  create_bitmap_add_layer(s_arm4_bitmap, s_arm4_layer, window_layer, 0,RECTWIDTH*16,RECTWIDTH*17,RECTWIDTH*3, RESOURCE_ID_BG_ARM4);
+  create_bitmap_add_layer(s_center_bitmap, s_center_layer, window_layer, RECTWIDTH*17,RECTWIDTH*16,RECTWIDTH*3,RECTWIDTH*3,RESOURCE_ID_BG_CENTER);
+  create_bitmap_add_layer(s_face_bitmap, s_face_layer, window_layer, RECTWIDTH*4,RECTWIDTH*3,RECTWIDTH*13,RECTWIDTH*13,RESOURCE_ID_BG_FACE);
+  create_bitmap_add_layer(s_face2_bitmap, s_face2_layer, window_layer, RECTWIDTH*20,RECTWIDTH*3,RECTWIDTH*13,RECTWIDTH*13,RESOURCE_ID_BG_FACE2);
+  create_bitmap_add_layer(s_face3_bitmap, s_face3_layer, window_layer, RECTWIDTH*20,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13,RESOURCE_ID_BG_FACE3);
+  create_bitmap_add_layer(s_face4_bitmap, s_face4_layer, window_layer, RECTWIDTH*4,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13,RESOURCE_ID_BG_FACE4);
+  create_bitmap_add_layer(s_side1_bitmap, s_side1_layer, window_layer, 0,0,RECTWIDTH*4,RECTWIDTH*16,RESOURCE_ID_BG_SIDE1);
+  create_bitmap_add_layer(s_side2_bitmap, s_side2_layer, window_layer, 0,RECTWIDTH*19,RECTWIDTH*4,RECTWIDTH*13,RESOURCE_ID_BG_SIDE2);
+  create_bitmap_add_layer(s_side1_bitmap, s_side3_layer, window_layer, RECTWIDTH*33,0,RECTWIDTH*3,RECTWIDTH*16,RESOURCE_ID_BG_SIDE1);
+  create_bitmap_add_layer(s_side2_bitmap, s_side4_layer, window_layer, RECTWIDTH*33,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*13,RESOURCE_ID_BG_SIDE2);
+  create_bitmap_add_layer(s_top_bitmap, s_top_layer, window_layer, RECTWIDTH*4,0,RECTWIDTH*13,RECTWIDTH*3,RESOURCE_ID_BG_TOP);
+  create_bitmap_add_layer(s_top_bitmap, s_top2_layer, window_layer, RECTWIDTH*20,0,RECTWIDTH*13,RECTWIDTH*3,RESOURCE_ID_BG_TOP);
+  create_bitmap_add_layer(s_pm_bitmap, s_pm_layer, window_layer, 0,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6,RESOURCE_ID_BG_PM);
+  create_bitmap_add_layer(s_pm_bitmap, s_pm2_layer, window_layer, RECTWIDTH*20,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6,RESOURCE_ID_BG_PM);
+  create_bitmap_add_layer(s_datebg_bitmap, s_datebg_layer, window_layer, 0,RECTWIDTH*38,RECTWIDTH*36,RECTWIDTH*4,RESOURCE_ID_BG_DATE); 
   
   //create hands layer
   s_hands_layer = layer_create(bounds);
@@ -434,16 +429,35 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, s_bt_layer);  
 
   layer_mark_dirty(window_get_root_layer(s_main_window));
-  
 }
 
 static void main_window_unload(Window *window) {
-    // Destroy TextLayer
+    // Destroy Layers
     layer_destroy(bg_layer); 
     layer_destroy(s_hands_layer);    
     layer_destroy(s_battery_layer);  
     layer_destroy(s_date_layer);    
-    layer_destroy(s_bt_layer);    
+    layer_destroy(s_bt_layer);  
+  
+    destroyBitmap(s_arm1_layer,s_arm1_bitmap);
+    destroyBitmap(s_arm2_layer,s_arm2_bitmap);
+    destroyBitmap(s_arm3_layer,s_arm3_bitmap);
+    destroyBitmap(s_arm4_layer,s_arm4_bitmap);  
+    destroyBitmap(s_side1_layer,s_side1_bitmap);
+    destroyBitmap(s_side2_layer,s_side2_bitmap);
+    bitmap_layer_destroy(s_side3_layer);
+    bitmap_layer_destroy(s_side4_layer);  
+    destroyBitmap(s_center_layer,s_center_bitmap);
+    destroyBitmap(s_pm_layer,s_pm_bitmap);
+    bitmap_layer_destroy(s_pm2_layer);  
+    destroyBitmap(s_datebg_layer,s_datebg_bitmap);
+    destroyBitmap(s_face_layer,s_face_bitmap);
+    destroyBitmap(s_face2_layer,s_face2_bitmap);
+    destroyBitmap(s_face3_layer,s_face3_bitmap);
+    destroyBitmap(s_face4_layer,s_face4_bitmap);
+    destroyBitmap(s_top_layer,s_top_bitmap);
+    bitmap_layer_destroy(s_top2_layer);
+  
 }
 
 
@@ -460,7 +474,7 @@ static void init() {
   // Show the Window on the watch, with animated=true
   window_stack_push(s_main_window, true);
   
-  seconds_color = PURPLE;
+  seconds_color = BLUE;
   minutes_color = WHITE;
   hours_color = WHITE;
   
@@ -473,7 +487,6 @@ static void init() {
 
 
 static void deinit() {
-  
     tick_timer_service_unsubscribe(); 
     accel_tap_service_unsubscribe();
     battery_state_service_unsubscribe();
