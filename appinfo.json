@@ -84,6 +84,114 @@
                 ],
                 "type": "png"
             },
+
+            {
+                "file": "images/0.png",
+                "name": "DIGIT0",
+                "type": "png"
+            },
+            {
+                "file": "images/1.png",
+                "name": "DIGIT1",
+                "type": "png"
+            },
+            {
+                "file": "images/2.png",
+                "name": "DIGIT2",
+                "type": "png"
+            },
+            {
+                "file": "images/3.png",
+                "name": "DIGIT3",
+                "type": "png"
+            },
+            {
+                "file": "images/4.png",
+                "name": "DIGIT4",
+                "type": "png"
+            },
+            {
+                "file": "images/5.png",
+                "name": "DIGIT5",
+                "type": "png"
+            },
+            {
+                "file": "images/6.png",
+                "name": "DIGIT6",
+                "type": "png"
+            },
+            {
+                "file": "images/7.png",
+                "name": "DIGIT7",
+                "type": "png"
+            },
+            {
+                "file": "images/8.png",
+                "name": "DIGIT8",
+                "type": "png"
+            },
+            {
+                "file": "images/9.png",
+                "name": "DIGIT9",
+                "type": "png"
+            },
+            {
+                "file": "images/MON.png",
+                "name": "MON",
+                "type": "png"
+            },
+            {
+                "file": "images/tue.png",
+                "name": "TUE",
+                "type": "png"
+            },
+            {
+                "file": "images/wed.png",
+                "name": "WED",
+                "type": "png"
+            },
+            {
+                "file": "images/thu.png",
+                "name": "THU",
+                "type": "png"
+            },
+            {
+                "file": "images/fri.png",
+                "name": "FRI",
+                "type": "png"
+            },
+            {
+                "file": "images/sat.png",
+                "name": "SAT",
+                "type": "png"
+            },
+            {
+                "file": "images/sun.png",
+                "name": "SUN",
+                "type": "png"
+            },
+            {
+                "file": "images/slash.png",
+                "name": "SLASH",
+                "type": "png"
+            },
+            {
+                "file": "images/pm.png",
+                "name": "PM",
+                "type": "png"
+            },
+            {
+                "file": "images/bt1.png",
+                "name": "BT1",
+                "type": "png"
+            },
+            {
+                "file": "images/bt2.png",
+                "name": "BT2",
+                "type": "png"
+            },
+
+
             {
                 "file": "images/icon.png",
                 "menuIcon": true,
