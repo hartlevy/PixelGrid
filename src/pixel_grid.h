@@ -4,12 +4,19 @@
 #define RECTHEIGHT  4
 #define WIDTH 144 / RECTWIDTH
 #define HEIGHT 168 / RECTHEIGHT
-#define WHITE 0  
-#define RED 1
-#define BLUE 2
-#define GREEN 3
-#define YELLOW 4
-#define PURPLE 5
+#define NUM_COLOR 8
+  
+  
+  enum {
+  WHITE = 0x0,
+  RED = 0x1,
+  BLUE = 0x2,
+  GREEN= 0x3,
+  YELLOW = 0x4,
+  PURPLE = 0x5,
+  CYAN = 0x6,
+  ORANGE = 0x7
+};
   
 static const uint8_t BAT_WARN_LEVEL = 50;
 static const uint8_t BAT_ALERT_LEVEL = 20;
@@ -17,43 +24,17 @@ static const float HI_COLOR_THRESHOLD = 0.7;
 static const float MID_COLOR_THRESHOLD = 0.35;
 static const float LO_COLOR_THRESHOLD = 0.1;
 
-  
-static const uint8_t RED_COLOR_SET[] = {
-  GColorRedARGB8,   
-  GColorDarkCandyAppleRedARGB8,
-  GColorBulgarianRoseARGB8
+static const uint8_t COLOR_SETS[NUM_COLOR][3] = {
+  {GColorWhiteARGB8, GColorLightGrayARGB8, GColorDarkGrayARGB8}, //WHITE
+  {GColorRedARGB8, GColorDarkCandyAppleRedARGB8, GColorBulgarianRoseARGB8}, //RED
+  {GColorBlueMoonARGB8, GColorBlueARGB8, GColorDukeBlueARGB8}, //BLUE
+  {GColorGreenARGB8, GColorIslamicGreenARGB8, GColorDarkGreenARGB8}, //GREEN  
+  {GColorYellowARGB8, GColorLimerickARGB8, GColorArmyGreenARGB8}, //YELLOW  
+  {GColorMagentaARGB8, GColorPurpleARGB8, GColorImperialPurpleARGB8}, //PURPLE
+  {GColorCyanARGB8, GColorTiffanyBlueARGB8, GColorMidnightGreenARGB8}, //CYAN
+  {GColorChromeYellowARGB8, GColorOrangeARGB8, GColorWindsorTanARGB8} //ORANGE    
 };
 
-static const uint8_t WHITE_COLOR_SET[] = {
-  GColorWhiteARGB8,   
-  GColorLightGrayARGB8,
-  GColorDarkGrayARGB8
-};
-
-static const uint8_t BLUE_COLOR_SET[] = {
-  GColorBlueMoonARGB8,   
-  GColorBlueARGB8,
-  GColorDukeBlueARGB8
-};
-
-static const uint8_t GREEN_COLOR_SET[] = {
-  GColorGreenARGB8,   
-  GColorIslamicGreenARGB8,
-  GColorDarkGreenARGB8
-};
-
-static const uint8_t YELLOW_COLOR_SET[] = {
-  GColorYellowARGB8,   
-  GColorLimerickARGB8,
-  GColorArmyGreenARGB8
-};
-
-static const uint8_t PURPLE_COLOR_SET[] = {
-  GColorMagentaARGB8,   
-  GColorPurpleARGB8,
-  GColorImperialPurpleARGB8
-};
-  
 static const struct GPathInfo BT_LOGO_POINTS = {
   14, 
   (GPoint []){
