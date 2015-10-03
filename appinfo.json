@@ -176,11 +176,6 @@
                 "type": "png"
             },
             {
-                "file": "images/pm.png",
-                "name": "PM",
-                "type": "png"
-            },
-            {
                 "file": "images/bt1.png",
                 "name": "BT1",
                 "type": "png"
