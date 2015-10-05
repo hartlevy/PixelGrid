@@ -7,8 +7,16 @@
 #define NUM_COLOR 8
 #define KEY_TEMPERATURE 0
 #define KEY_CONDITIONS 1  
+#define BT_IMAGE_SMALL 1  
+#define BT_IMAGE_LARGE 2
   
   
+enum {
+  TAP_DURATION_SHORT = 0x3,
+  TAP_DURATION_MED = 0x4,
+  TAP_DURATION_LONG = 0x6  
+}; 
+
 enum {
   WHITE = 0x0,
   RED = 0x1,

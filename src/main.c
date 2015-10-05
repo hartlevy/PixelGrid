@@ -17,7 +17,7 @@ static BitmapLayer *s_date_digits_layer[5];
 static GBitmap *s_date_digits_bitmap[5];
 
 static BitmapLayer *s_temp_digits_layer[4];
-static GBitmap *s_temp_digits_bitmap[5];
+static GBitmap *s_temp_digits_bitmap[4];
 
 static BitmapLayer *s_day_layer;
 static GBitmap *s_day_bitmap;
@@ -104,17 +104,9 @@ static void plot(Layer *layer, uint8_t x, uint8_t y, float c, uint8_t colorset, 
   }  
 }
 
-// integer part of x
-static uint8_t ipart(float x){
-    return (uint8_t) x;
-}
-
 
 // fractional part of x
 static float fpart(float x){
-    if (x < 0.0){    
-        return 1.0 - (x - (int)x);
-    }
     return x - (int)x;
 }
 
@@ -151,20 +143,20 @@ static void drawAliasLine(Layer *layer, uint8_t x0, uint8_t y0,uint8_t x1,uint8_
     for (uint8_t x = x0; x <= x1; x++){
         if(steep){
             if(thick){
-              plot(layer, ipart(intery)-1, x, rfpart(intery)/2, colorset, ctx);
-              plot(layer, ipart(intery), x, 1, colorset, ctx);     
+              plot(layer, intery-1, x, rfpart(intery)/2, colorset, ctx);
+              plot(layer, intery, x, 1, colorset, ctx);     
             }else{
-              plot(layer, ipart(intery), x, rfpart(intery), colorset, ctx);                   
+              plot(layer, intery, x, rfpart(intery), colorset, ctx);                   
             }
-            plot(layer, ipart(intery)+1, x,  fpart(intery), colorset, ctx);
+            plot(layer, intery+1, x,  fpart(intery), colorset, ctx);
         }else{
             if(thick){
-              plot(layer, x, ipart(intery)-1, rfpart(intery)/2, colorset, ctx);
-              plot(layer, x, ipart(intery), 1, colorset, ctx);     
+              plot(layer, x, intery-1, rfpart(intery)/2, colorset, ctx);
+              plot(layer, x, intery, 1, colorset, ctx);     
             }else{
-              plot(layer, x, ipart(intery), rfpart(intery), colorset, ctx);                   
+              plot(layer, x, intery, rfpart(intery), colorset, ctx);                   
             }                 
-            plot(layer, x, ipart(intery)+1, fpart(intery), colorset, ctx);
+            plot(layer, x, intery+1, fpart(intery), colorset, ctx);
         }
         intery = intery + gradient;
     }
@@ -267,7 +259,7 @@ static void bt_update_proc(Layer *layer, GContext *ctx) {
 static void update_bt_img(bool connected) {  
   if(connected){
     int bt_id = RESOURCE_ID_BT1;
-    if(bt_image_type == 2){
+    if(bt_image_type == BT_IMAGE_LARGE){
       bt_id = RESOURCE_ID_BT2;
     }
       
@@ -346,19 +338,19 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
   }
   seconds_color = (seconds_color + NUM_COLOR)%NUM_COLOR;  
 
-  tap_counter = 4;
+  tap_counter = TAP_DURATION_MED;
   show_tap_display();
   layer_mark_dirty(s_hands_layer);   
 }
 
-static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
+static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
   layer_mark_dirty(s_hands_layer);
   if(units_changed & DAY_UNIT){
       update_date();
   }
   
   // Get weather update every 30 minutes
-  if(tick_time->tm_min % 30 == 0) {
+  if(t->tm_min % 30 == 0 && t->tm_sec % 60 == 0) {
     // Begin dictionary
     DictionaryIterator *iter;
     app_message_outbox_begin(&iter);
@@ -384,7 +376,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   bool got_temperature = false;
   bool neg_temp = false;  
   static char conditions_buffer[32];
-  static char weather_layer_buffer[32];
   
   // Read first item
   Tuple *t = dict_read_first(iterator);
@@ -526,7 +517,7 @@ static void main_window_load(Window *window) {
   
   memset(&s_temp_digits_layer, 0, sizeof(s_temp_digits_layer));
   
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 4; ++i) {
     s_temp_digits_layer[i] = bitmap_layer_create(dummy_frame);
     layer_add_child(s_temp_layer, bitmap_layer_get_layer(s_temp_digits_layer[i]));
   }  
@@ -596,7 +587,7 @@ static void init() {
   seconds_color = GREEN;
   minutes_color = WHITE;
   hours_color = WHITE;
-  bt_image_type = 2;
+  bt_image_type = BT_IMAGE_LARGE;
   
   // Create main Window element and assign to pointer
   s_main_window = window_create();
