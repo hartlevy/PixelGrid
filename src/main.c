@@ -2,7 +2,8 @@
 #include "pixel_grid.h"
   
 static Window *s_main_window;
-static Layer *bg_layer, *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer;
+static Layer *bg_layer, *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer, *s_temp_layer;
+
 static BitmapLayer *s_faces_layer[9];
 static GBitmap *s_faces_bitmap[9];
 
@@ -12,14 +13,23 @@ static GBitmap *s_sides_bitmap[6];
 static BitmapLayer *s_details_layer[3];
 static GBitmap *s_details_bitmap[3];
 
-static BitmapLayer *s_side1_layer, *s_side2_layer, *s_side3_layer, *s_side4_layer;
-static BitmapLayer *s_pm_layer, *s_pm2_layer, *s_datebg_layer, *s_top_layer, *s_top2_layer;
-static GBitmap  *s_pm_bitmap;
-static GBitmap *s_datebg_bitmap, *s_face_bitmap, *s_pm2_bitmap, *s_top2_bitmap;
-static GBitmap *s_side1_bitmap, *s_side2_bitmap, *s_side3_bitmap, *s_side4_bitmap, *s_top_bitmap;
+static BitmapLayer *s_date_digits_layer[5];
+static GBitmap *s_date_digits_bitmap[5];
+
+static BitmapLayer *s_temp_digits_layer[4];
+static GBitmap *s_temp_digits_bitmap[5];
+
+static BitmapLayer *s_day_layer;
+static GBitmap *s_day_bitmap;
+
+static BitmapLayer *s_bt_img_layer;
+static GBitmap *s_bt_img_bitmap;
+
 static int seconds_color;
 static int minutes_color;
 static int hours_color;
+static int bt_image_type;
+static int tap_counter = -1;
 
 static void fillPixel(Layer *layer, int16_t i, int16_t j, GContext *ctx){
   int startX = i * (RECTWIDTH);
@@ -45,6 +55,45 @@ static void setColorShade(float c, uint8_t color, GContext *ctx){
   }else{
     graphics_context_set_fill_color(ctx, GColorOxfordBlue);
   }  
+}
+
+static void set_container_image(GBitmap **bmp_image, BitmapLayer *bmp_layer, const int resource_id, uint8_t x, uint8_t  y) {
+  GBitmap *old_image = *bmp_image;
+  //*bmp_image = gbitmap_create_with_palette(COLOUR_USER, resource_id);
+  *bmp_image = gbitmap_create_with_resource(resource_id);
+  
+  GPoint origin = { .x = x, .y = y};
+  
+  GRect frame = (GRect) {
+    .origin = origin,
+    .size = gbitmap_get_bounds(*bmp_image).size
+  };
+
+	bitmap_layer_set_bitmap(bmp_layer, *bmp_image);
+	layer_set_frame(bitmap_layer_get_layer(bmp_layer), frame);
+  
+  if (old_image != NULL) {
+		gbitmap_destroy(old_image);
+		old_image = NULL;
+  }        
+}
+
+static BitmapLayer* create_bitmap_layer(GBitmap *bitmap, Layer *window_layer,
+                                    int16_t x, int16_t y, int16_t w, int16_t h){
+    GRect frame = GRect(x, y, w, h);
+    BitmapLayer* bmp_layer = bitmap_layer_create(frame);
+    bitmap_layer_set_background_color(bmp_layer,GColorBlack);
+    bitmap_layer_set_bitmap(bmp_layer, bitmap);  
+    layer_add_child(window_layer, bitmap_layer_get_layer(bmp_layer));  
+    return bmp_layer;
+}
+
+static void destroy_bitmap_layer( BitmapLayer *layer, GBitmap *bitmap){
+    layer_remove_from_parent(bitmap_layer_get_layer(layer));  
+    bitmap_layer_destroy(layer);
+    if (bitmap != NULL){ 
+      gbitmap_destroy(bitmap);
+    }
 }
 
 static void plot(Layer *layer, uint8_t x, uint8_t y, float c, uint8_t colorset, GContext *ctx){
@@ -137,67 +186,6 @@ static GPoint createHand(int32_t angle, int16_t length, int x, int y){
   return hand;
 }
 
-static void draw_digit(Layer *layer, uint8_t x, uint8_t y, uint8_t n, GContext *ctx){
-  if(true){
-    fillPixel(layer, x, y, ctx);
-  }
-  if(n != 4){
-    fillPixel(layer, x+1, y, ctx);
-  }
-  if(n != 1){
-    fillPixel(layer, x+2, y, ctx);
-  }
-  
-  if((n > 3 && n != 7) || n == 0){
-    fillPixel(layer, x, y+1, ctx);
-  }
-  if(n > 7 || n == 1 || n==5){
-    fillPixel(layer, x+1, y+1, ctx);
-  }
-  if(n != 5 && n != 6 && n != 1){
-    fillPixel(layer, x+2, y+1, ctx);
-  }
-  
-  if(n % 2 == 0 && n != 4){
-    fillPixel(layer, x, y+2, ctx);
-  }
-  if(n > 0 && n < 7 && n!= 5){
-    fillPixel(layer, x+1, y+2, ctx);
-  }
-  if(n != 2 && n!=1){
-    fillPixel(layer, x+2, y+2, ctx);
-  }
-  
-  if(n != 4 && n != 7){
-    fillPixel(layer, x, y+3, ctx);
-    fillPixel(layer, x+1, y+3, ctx);    
-  }
-  if(true){
-    fillPixel(layer, x+2, y+3, ctx);
-  }  
-}
-
-static void date_update_proc(Layer *layer, GContext *ctx) {
-  GPoint start = { .x = WIDTH-19, .y = WIDTH + 2};
-  
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);
-  int month = t->tm_mon;
-  int day = t->tm_mday;
-  
-  int m1 = (month+1)/10;
-  int m2 = (month+1)%10;
-  int d1 = day/10;
-  int d2 = day%10;
-    
-  graphics_context_set_fill_color(ctx, GColorWhite);  
-  draw_digit(layer, start.x, start.y, d1, ctx );
-  draw_digit(layer, start.x + 4, start.y, d2, ctx );                          
-  draw_shape(layer, SLASH_POINTS.points, SLASH_POINTS.num_points, start.x, start.y, ctx);   
-  draw_digit(layer, start.x + 11, start.y, m1, ctx );
-  draw_digit(layer, start.x + 15, start.y, m2, ctx );
-}
-
 
 static void hands_update_proc(Layer *layer, GContext *ctx) {
   GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
@@ -221,11 +209,12 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, true, ctx);    
   drawAliasLine(layer, center.x, center.y, second_hand.x, second_hand.y, seconds_color, false, ctx);  
   
-  // Draw A/P
+  // Draw PM
   if(t->tm_hour >= 12){  
     graphics_context_set_fill_color(ctx, GColorYellow); 
     draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, WIDTH-10, WIDTH-2, ctx);  
-  }  
+  }    
+  
 }
 
 
@@ -235,9 +224,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   uint8_t charge = state.charge_percent;
   GColor charge_color;
   GColor case_color = GColorWhite;  
-  int bat_x = 1;
-  int bat_y = WIDTH + 3;  
-    
+
   if(state.is_plugged){
     case_color = GColorGreen;
   }
@@ -253,39 +240,100 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   }    
   
   graphics_context_set_fill_color(ctx, case_color);  
-  draw_shape(layer, BAT_CASE_POINTS.points, BAT_CASE_POINTS.num_points, bat_x, bat_y, ctx);             
+  draw_shape(layer, BAT_CASE_POINTS.points, BAT_CASE_POINTS.num_points, 0, 0, ctx);             
 
   graphics_context_set_fill_color(ctx, charge_color);         
   for(int i = 0; i < charge/10; i++ ){    
     //battery fill
-    fillPixel(layer, bat_x + i + 1, bat_y+1, ctx);    
+    fillPixel(layer, i + 1, 1, ctx);    
   }
   
   //Charge icon
   if(state.is_charging){
     graphics_context_set_fill_color(ctx, GColorYellow); 
-    draw_shape(layer, CHARGE_POINTS.points, CHARGE_POINTS.num_points, bat_x, bat_y-1, ctx);           
+    draw_shape(layer, CHARGE_POINTS.points, CHARGE_POINTS.num_points, 3, 0, ctx);           
   }
 }
 
 static void bt_update_proc(Layer *layer, GContext *ctx) {
   bool connected = bluetooth_connection_service_peek();
-  int bt_x = 1;
-  int bt_y = WIDTH - 3; 
   
   if(connected){
     graphics_context_set_fill_color(ctx, GColorBlueMoon);           
-    draw_shape(layer, BT_LOGO_POINTS.points, BT_LOGO_POINTS.num_points, bt_x, bt_y, ctx);               
+    draw_shape(layer, BT_LOGO_POINTS.points, BT_LOGO_POINTS.num_points, 0, 0, ctx);               
   }
 }
 
+static void update_bt_img(bool connected) {  
+  if(connected){
+    int bt_id = RESOURCE_ID_BT1;
+    if(bt_image_type == 2){
+      bt_id = RESOURCE_ID_BT2;
+    }
+      
+	  set_container_image(&s_bt_img_bitmap, s_bt_img_layer, bt_id, 0, 0);  
+  }
+}
+
+static void update_date(){
+  uint8_t x = 0;//(WIDTH-19)*RECTWIDTH;
+  uint8_t y = 0;//;(WIDTH + 2)*RECTWIDTH;  
+  
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);
+  int month = t->tm_mon;
+  int day = t->tm_mday;
+  
+  int m1 = (month+1)/10;
+  int m2 = (month+1)%10;
+  int d1 = day/10;
+  int d2 = day%10;
+  
+	set_container_image(&s_date_digits_bitmap[0], s_date_digits_layer[0], DIGIT_IMAGE_RESOURCE_IDS[d1], x, y);  
+	set_container_image(&s_date_digits_bitmap[1], s_date_digits_layer[1], DIGIT_IMAGE_RESOURCE_IDS[d2], x + 4*RECTWIDTH, y);  
+	set_container_image(&s_date_digits_bitmap[2], s_date_digits_layer[2], RESOURCE_ID_SLASH, x + 8*RECTWIDTH, y);  
+	set_container_image(&s_date_digits_bitmap[3], s_date_digits_layer[3], DIGIT_IMAGE_RESOURCE_IDS[m1], x + 11*RECTWIDTH, y);  
+	set_container_image(&s_date_digits_bitmap[4], s_date_digits_layer[4], DIGIT_IMAGE_RESOURCE_IDS[m2], x + 15*RECTWIDTH, y);    
+}
+
+
+static void show_tap_display(){
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);  
+  int day = t->tm_wday;
+  
+  GPoint origin = layer_get_frame(s_date_layer).origin;
+  
+	set_container_image(&s_day_bitmap, s_day_layer, DAY_NAME_IMAGE_RESOURCE_IDS[day], origin.x+6*RECTWIDTH, origin.y);  
+    
+  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), false);
+  layer_set_hidden(s_date_layer, true); 
+  
+  layer_set_hidden(s_temp_layer, false);     
+  layer_set_hidden(s_bt_layer, true);  
+  layer_set_hidden(s_battery_layer, true);
+}
+
+
+static void clear_tap_display(){
+  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), true);
+  layer_set_hidden(s_date_layer, false); 
+  
+  layer_set_hidden(s_temp_layer, true);     
+  layer_set_hidden(s_bt_layer, false);  
+  layer_set_hidden(s_battery_layer, false);  
+}
 
 static void bt_handler(bool connected) {
   if(!connected){
     vibes_short_pulse();
+    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), false);      
+  }else{
+    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), true);      
   }
-  layer_mark_dirty(s_bt_layer);
+  update_bt_img(connected);
 }
+
 static void battery_handler(BatteryChargeState new_state) {
   layer_mark_dirty(s_battery_layer);
 }
@@ -296,36 +344,117 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
   }else{
     seconds_color --;
   }
-  seconds_color = (seconds_color + NUM_COLOR)%NUM_COLOR;
-  layer_mark_dirty(s_hands_layer);  
+  seconds_color = (seconds_color + NUM_COLOR)%NUM_COLOR;  
+
+  tap_counter = 4;
+  show_tap_display();
+  layer_mark_dirty(s_hands_layer);   
 }
 
 static void handle_second_tick(struct tm *tick_time, TimeUnits units_changed) {
   layer_mark_dirty(s_hands_layer);
   if(units_changed & DAY_UNIT){
-      layer_mark_dirty(s_date_layer);
-  }     
+      update_date();
+  }
+  
+  // Get weather update every 30 minutes
+  if(tick_time->tm_min % 30 == 0) {
+    // Begin dictionary
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+
+    // Add a key-value pair
+    dict_write_uint8(iter, 0, 0);
+
+    // Send the message!
+    app_message_outbox_send();
+  }  
+  
+  if(tap_counter >= 0){
+    if(tap_counter == 0){
+      clear_tap_display();
+    }
+    tap_counter--;
+  }  
 }
 
-static BitmapLayer* create_bitmap_layer(GBitmap *bitmap, Layer *window_layer,
-                                    int16_t x, int16_t y, int16_t w, int16_t h){
-    BitmapLayer* layer = bitmap_layer_create(GRect(x, y, w, h));
-    bitmap_layer_set_background_color(layer,GColorBlack);
-    bitmap_layer_set_bitmap(layer, bitmap);  
-    layer_add_child(window_layer, bitmap_layer_get_layer(layer));  
-    return layer;
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
+  // Store incoming information
+  int temperature = 0;
+  bool got_temperature = false;
+  bool neg_temp = false;  
+  static char conditions_buffer[32];
+  static char weather_layer_buffer[32];
+  
+  // Read first item
+  Tuple *t = dict_read_first(iterator);
+
+  // For all items
+  while(t != NULL) {
+    // Which key was received?
+    switch(t->key) {
+    case KEY_TEMPERATURE:
+      temperature = (int)t->value->int32;
+      got_temperature = true;
+      break;
+    case KEY_CONDITIONS:
+      snprintf(conditions_buffer, sizeof(conditions_buffer), "%s", t->value->cstring);
+      break;
+    default:
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+      break;
+    }
+
+    // Look for next item
+    t = dict_read_next(iterator);
+  }  
+  
+  if(got_temperature){
+    if(temperature < 0){
+      temperature = -temperature;
+      neg_temp = true;
+    }
+        
+    int t1 = temperature/100;
+    int t2 = (temperature%100)/10;
+    int t3 = temperature%10;
+    
+    int x = 0;
+    if(t1 != 0){
+      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], DIGIT_IMAGE_RESOURCE_IDS[t1], x, 0);  
+      x += 4*RECTWIDTH;
+    } else if(neg_temp){
+      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], RESOURCE_ID_NEGATIVE, x, 0);        
+      x += 4*RECTWIDTH;
+    } else if(s_temp_digits_bitmap[0] != NULL){
+      gbitmap_destroy(s_temp_digits_bitmap[0]);
+      s_temp_digits_bitmap[0] = NULL;
+    }
+    set_container_image(&s_temp_digits_bitmap[1], s_temp_digits_layer[1], DIGIT_IMAGE_RESOURCE_IDS[t2], x, 0);  
+    x += 4*RECTWIDTH;  	
+    set_container_image(&s_temp_digits_bitmap[2], s_temp_digits_layer[2], DIGIT_IMAGE_RESOURCE_IDS[t3], x, 0);  
+    x += 4*RECTWIDTH;  	
+    set_container_image(&s_temp_digits_bitmap[3], s_temp_digits_layer[3], RESOURCE_ID_DEGREE, x, 0);          
+  }
 }
 
-static void destroyBitmap( BitmapLayer *layer, GBitmap *bitmap){
-    layer_remove_from_parent(bitmap_layer_get_layer(layer));  
-    bitmap_layer_destroy(layer);
-    gbitmap_destroy(bitmap);
+static void inbox_dropped_callback(AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
+}
+
+static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed!");
+}
+
+static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
 }
 
 
 static void main_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
+  GRect dummy_frame = { {0, 0}, {0, 0} };
   
   //create bg layers
   s_faces_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM1);  
@@ -346,24 +475,28 @@ static void main_window_load(Window *window) {
   s_faces_layer[7] = create_bitmap_layer(s_faces_bitmap[7], window_layer, RECTWIDTH*20,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13);
   s_faces_bitmap[8] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE4);     
   s_faces_layer[8] = create_bitmap_layer(s_faces_bitmap[8], window_layer, RECTWIDTH*4,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13);
-  s_side1_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_side1_layer = create_bitmap_layer(s_side1_bitmap, window_layer, 0,0,RECTWIDTH*4,RECTWIDTH*16);
-  s_side2_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_side2_layer = create_bitmap_layer(s_side2_bitmap, window_layer, 0,RECTWIDTH*19,RECTWIDTH*4,RECTWIDTH*13);
-  s_side3_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_side3_layer = create_bitmap_layer(s_side3_bitmap, window_layer, RECTWIDTH*33,0,RECTWIDTH*3,RECTWIDTH*16);
-  s_side4_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_side4_layer = create_bitmap_layer(s_side4_bitmap, window_layer, RECTWIDTH*33,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*13);
-  s_top_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_top_layer = create_bitmap_layer(s_top_bitmap, window_layer, RECTWIDTH*4,0,RECTWIDTH*13,RECTWIDTH*3);
-  s_top2_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_top2_layer = create_bitmap_layer(s_top2_bitmap, window_layer, RECTWIDTH*20,0,RECTWIDTH*13,RECTWIDTH*3);
-  s_pm_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_pm_layer = create_bitmap_layer(s_pm_bitmap, window_layer, 0,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
-  s_pm2_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_pm2_layer = create_bitmap_layer(s_pm2_bitmap, window_layer, RECTWIDTH*20,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
-  s_datebg_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_DATE);     
-  s_datebg_layer = create_bitmap_layer(s_datebg_bitmap, window_layer, 0,RECTWIDTH*38,RECTWIDTH*36,RECTWIDTH*4); 
+
+  s_sides_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
+  s_sides_layer[0] = create_bitmap_layer(s_sides_bitmap[0], window_layer, 0,0,RECTWIDTH*4,RECTWIDTH*16);
+  s_sides_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
+  s_sides_layer[1] = create_bitmap_layer(s_sides_bitmap[1], window_layer, 0,RECTWIDTH*19,RECTWIDTH*4,RECTWIDTH*13);
+  s_sides_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
+  s_sides_layer[2] = create_bitmap_layer(s_sides_bitmap[2], window_layer, RECTWIDTH*33,0,RECTWIDTH*3,RECTWIDTH*16);
+  s_sides_bitmap[3] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
+  s_sides_layer[3] = create_bitmap_layer(s_sides_bitmap[3], window_layer, RECTWIDTH*33,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*13);
+  s_sides_bitmap[4] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
+  s_sides_layer[4] = create_bitmap_layer(s_sides_bitmap[4], window_layer, RECTWIDTH*4,0,RECTWIDTH*13,RECTWIDTH*3);
+  s_sides_bitmap[5] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
+  s_sides_layer[5] = create_bitmap_layer(s_sides_bitmap[5], window_layer, RECTWIDTH*20,0,RECTWIDTH*13,RECTWIDTH*3);
+ 
+  s_details_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
+  s_details_layer[0] = create_bitmap_layer(s_details_bitmap[0], window_layer, 0,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
+  s_details_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
+  s_details_layer[1] = create_bitmap_layer(s_details_bitmap[1], window_layer, RECTWIDTH*20,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
+  s_details_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_DATE);     
+  s_details_layer[2] = create_bitmap_layer(s_details_bitmap[2], window_layer, 0,RECTWIDTH*38,RECTWIDTH*36,RECTWIDTH*4); 
+  
+  
   
   //create hands layer
   s_hands_layer = layer_create(bounds);
@@ -371,19 +504,52 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, s_hands_layer);
   
   //create date layer
-  s_date_layer = layer_create(bounds);
-  layer_set_update_proc(s_date_layer, date_update_proc);
+  s_date_layer = layer_create(GRect((WIDTH/2-1)*RECTWIDTH, (WIDTH+2)*RECTWIDTH,20*RECTWIDTH,4*RECTWIDTH));
+ // layer_set_update_proc(s_date_layer, date_update_proc);
   layer_add_child(window_layer, s_date_layer);
   
+  memset(&s_date_digits_layer, 0, sizeof(s_date_digits_layer));
+  
+  for (int i = 0; i < 5; ++i) {
+    s_date_digits_layer[i] = bitmap_layer_create(dummy_frame);
+    layer_add_child(s_date_layer, bitmap_layer_get_layer(s_date_digits_layer[i]));
+  }
+    
+  //create day of week layer
+  s_day_layer = bitmap_layer_create(GRect((WIDTH/2-1)*RECTWIDTH, (WIDTH+2)*RECTWIDTH,20*RECTWIDTH,4*RECTWIDTH));
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_day_layer));
+  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), true);
+  
+  //create temperature layer
+  s_temp_layer = layer_create(GRect(2*RECTWIDTH, (WIDTH+2)*RECTWIDTH,16*RECTWIDTH,4*RECTWIDTH));
+  layer_add_child(window_layer, s_temp_layer);
+  
+  memset(&s_temp_digits_layer, 0, sizeof(s_temp_digits_layer));
+  
+  for (int i = 0; i < 5; ++i) {
+    s_temp_digits_layer[i] = bitmap_layer_create(dummy_frame);
+    layer_add_child(s_temp_layer, bitmap_layer_get_layer(s_temp_digits_layer[i]));
+  }  
+  
+  layer_set_hidden(s_temp_layer, true);
+  
   //create battery layer
-  s_battery_layer = layer_create(bounds);
+  s_battery_layer = layer_create(GRect(RECTWIDTH, (WIDTH+3)*RECTWIDTH,13*RECTWIDTH,3*RECTWIDTH));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   layer_add_child(window_layer, s_battery_layer);
   
   //create bluetooth layer
-  s_bt_layer = layer_create(bounds);
-  layer_set_update_proc(s_bt_layer, bt_update_proc);
+  s_bt_layer = layer_create(GRect(RECTWIDTH, (WIDTH-4)*RECTWIDTH,7*RECTWIDTH,7*RECTWIDTH));
   layer_add_child(window_layer, s_bt_layer);  
+
+  //Bluetooth img
+  s_bt_img_layer = bitmap_layer_create(dummy_frame);
+  layer_add_child(s_bt_layer, bitmap_layer_get_layer(s_bt_img_layer)); 
+  
+  
+  //Initial draw of details
+  update_date();  
+  update_bt_img(bluetooth_connection_service_peek());  
 
   layer_mark_dirty(window_get_root_layer(s_main_window));
 }
@@ -392,29 +558,46 @@ static void main_window_unload(Window *window) {
     // Destroy Layers
   
   for(int i = 0; i < 9; i++){
-    destroyBitmap(s_faces_layer[i], s_faces_bitmap[i] );
+    destroy_bitmap_layer(s_faces_layer[i], s_faces_bitmap[i] );
   }
-    
-    destroyBitmap(s_side1_layer,s_side1_bitmap);
-    destroyBitmap(s_side2_layer,s_side2_bitmap);
-    destroyBitmap(s_side3_layer, s_side3_bitmap);
-    destroyBitmap(s_side4_layer, s_side4_bitmap);  
-    destroyBitmap(s_pm_layer,s_pm_bitmap);
-    destroyBitmap(s_pm2_layer, s_pm2_bitmap);  
-    destroyBitmap(s_datebg_layer,s_datebg_bitmap);
-    destroyBitmap(s_top_layer,s_top_bitmap);
-    destroyBitmap(s_top2_layer, s_top2_bitmap);  
   
-    layer_destroy(bg_layer); 
-    layer_destroy(s_hands_layer);    
-    layer_destroy(s_battery_layer);  
-    layer_destroy(s_date_layer);    
-    layer_destroy(s_bt_layer);  
-   
+  for(int i = 0; i < 6; i++){
+    destroy_bitmap_layer(s_sides_layer[i], s_sides_bitmap[i] );    
+  }
+  
+  for(int i = 0; i < 3; i++){
+    destroy_bitmap_layer(s_details_layer[i], s_details_bitmap[i] );    
+  }   
+  
+  for(int i = 0; i < 5; i++){
+    destroy_bitmap_layer(s_date_digits_layer[i], s_date_digits_bitmap[i] );    
+  }   
+  
+  for(int i = 0; i < 4; i++){
+    destroy_bitmap_layer(s_temp_digits_layer[i], s_temp_digits_bitmap[i] );    
+  }  
+  
+  destroy_bitmap_layer(s_bt_img_layer, s_bt_img_bitmap);   
+  destroy_bitmap_layer(s_day_layer, s_day_bitmap);        
+  
+  layer_destroy(s_hands_layer);    
+  layer_destroy(s_battery_layer);  
+  layer_destroy(s_date_layer);    
+  layer_destroy(s_bt_layer);  
+  layer_destroy(s_temp_layer); 
+  
 }
 
 
 static void init() {
+  
+  srand(time(NULL));
+  
+  seconds_color = GREEN;
+  minutes_color = WHITE;
+  hours_color = WHITE;
+  bt_image_type = 2;
+  
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 
@@ -427,15 +610,19 @@ static void init() {
   // Show the Window on the watch, with animated=true
   window_stack_push(s_main_window, true);
   
-  seconds_color = ORANGE;
-  minutes_color = WHITE;
-  hours_color = WHITE;
+  // Register callbacks
+  app_message_register_inbox_received(inbox_received_callback);
+  app_message_register_inbox_dropped(inbox_dropped_callback);
+  app_message_register_outbox_failed(outbox_failed_callback);
+  app_message_register_outbox_sent(outbox_sent_callback);
   
   // Register with Services
   tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
   accel_tap_service_subscribe(tap_handler);  
   battery_state_service_subscribe(battery_handler);
   bluetooth_connection_service_subscribe(bt_handler);  
+  
+  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 }
 
 

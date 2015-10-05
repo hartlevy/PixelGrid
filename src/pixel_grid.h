@@ -2,12 +2,14 @@
 
 #define RECTWIDTH 4
 #define RECTHEIGHT  4
-#define WIDTH 144 / RECTWIDTH
-#define HEIGHT 168 / RECTHEIGHT
+#define WIDTH (144 / RECTWIDTH)
+#define HEIGHT (168 / RECTHEIGHT)
 #define NUM_COLOR 8
+#define KEY_TEMPERATURE 0
+#define KEY_CONDITIONS 1  
   
   
-  enum {
+enum {
   WHITE = 0x0,
   RED = 0x1,
   BLUE = 0x2,
@@ -17,6 +19,30 @@
   CYAN = 0x6,
   ORANGE = 0x7
 };
+
+const int DAY_NAME_IMAGE_RESOURCE_IDS[] = {
+  RESOURCE_ID_SUN,
+  RESOURCE_ID_MON,
+  RESOURCE_ID_TUE,
+  RESOURCE_ID_WED,
+  RESOURCE_ID_THU,
+  RESOURCE_ID_FRI,
+  RESOURCE_ID_SAT
+};
+
+const int DIGIT_IMAGE_RESOURCE_IDS[10] = {
+  RESOURCE_ID_DIGIT0,
+  RESOURCE_ID_DIGIT1,
+  RESOURCE_ID_DIGIT2,
+  RESOURCE_ID_DIGIT3,
+  RESOURCE_ID_DIGIT4,
+  RESOURCE_ID_DIGIT5,  
+  RESOURCE_ID_DIGIT6,
+  RESOURCE_ID_DIGIT7,
+  RESOURCE_ID_DIGIT8,
+  RESOURCE_ID_DIGIT9
+};
+
   
 static const uint8_t BAT_WARN_LEVEL = 50;
 static const uint8_t BAT_ALERT_LEVEL = 20;
@@ -32,7 +58,7 @@ static const uint8_t COLOR_SETS[NUM_COLOR][3] = {
   {GColorYellowARGB8, GColorLimerickARGB8, GColorArmyGreenARGB8}, //YELLOW  
   {GColorMagentaARGB8, GColorPurpleARGB8, GColorImperialPurpleARGB8}, //PURPLE
   {GColorCyanARGB8, GColorTiffanyBlueARGB8, GColorMidnightGreenARGB8}, //CYAN
-  {GColorChromeYellowARGB8, GColorOrangeARGB8, GColorWindsorTanARGB8} //ORANGE    
+  {GColorOrangeARGB8, GColorWindsorTanARGB8, GColorArmyGreenARGB8} //ORANGE    
 };
 
 static const struct GPathInfo BT_LOGO_POINTS = {
@@ -66,8 +92,14 @@ static const struct GPathInfo PM_POINTS = {
 }; 
 
 static const struct GPathInfo CHARGE_POINTS = {
-  6,
-  (GPoint[]){{6,0}, {5,1}, {5,2}, {6,2}, {6,3}, {5,4}}
+  11,
+  (GPoint[]){
+    {0,0}, {3,0}, {4,0}, {1,1}, {2,1}, {3,1},
+    {4,1}, {5,1}, {2,2}, {3,2}, {6,2}
+  }
+ /* 6,
+  (GPoint[]){{6,0}, {5,1}, {5,2}, {6,2}, {6,3}, {5,4}}*/
+ 
 };    
 
 static const struct GPathInfo SLASH_POINTS = {
