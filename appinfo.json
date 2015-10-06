@@ -57,6 +57,11 @@
                 "name": "DIGIT4",
                 "type": "png"
             },
+	    {
+                "file": "images/4B.png",
+                "name": "DIGIT4B",
+                "type": "png"
+            },
             {
                 "file": "images/bt1.png",
                 "name": "BT1",
@@ -71,6 +76,11 @@
                 "file": "images/7.png",
                 "name": "DIGIT7",
                 "type": "png"
+            },
+	    {
+                "file": "images/7B.png",
+                "name": "DIGIT7B",
+	        "type": "png"
             },
             {
                 "file": "images/wed.png",
@@ -87,6 +97,11 @@
                 "file": "images/1.png",
                 "name": "DIGIT1",
                 "type": "png"
+            },
+            {
+                "file": "images/1B.png",
+                "name": "DIGIT1B",
+	        "type": "png"
             },
             {
                 "file": "images/thu.png",
@@ -107,6 +122,11 @@
                 "file": "images/2.png",
                 "name": "DIGIT2",
                 "type": "png"
+            },
+            {
+                "file": "images/2B.png",
+                "name": "DIGIT2B",
+	        "type": "png"
             },
             {
                 "file": "images/bgcenter.png",
