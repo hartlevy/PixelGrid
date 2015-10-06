@@ -29,7 +29,11 @@ static int seconds_color;
 static int minutes_color;
 static int hours_color;
 static int bt_image_type;
+static int temp_scale;
+static int date_format;
+
 static int tap_counter = -1;
+
 
 static void fillPixel(Layer *layer, int16_t i, int16_t j, GContext *ctx){
   int startX = i * (RECTWIDTH);
@@ -104,6 +108,10 @@ static void plot(Layer *layer, uint8_t x, uint8_t y, float c, uint8_t colorset, 
   }  
 }
 
+// integer part of x
+static uint8_t ipart(float x){
+    return (uint8_t) x;
+}
 
 // fractional part of x
 static float fpart(float x){
@@ -143,20 +151,20 @@ static void drawAliasLine(Layer *layer, uint8_t x0, uint8_t y0,uint8_t x1,uint8_
     for (uint8_t x = x0; x <= x1; x++){
         if(steep){
             if(thick){
-              plot(layer, intery-1, x, rfpart(intery)/2, colorset, ctx);
-              plot(layer, intery, x, 1, colorset, ctx);     
+              plot(layer, ipart(intery)-1, x, rfpart(intery)/2, colorset, ctx);
+              plot(layer, ipart(intery), x, 1, colorset, ctx);     
             }else{
-              plot(layer, intery, x, rfpart(intery), colorset, ctx);                   
+              plot(layer, ipart(intery), x, rfpart(intery), colorset, ctx);                   
             }
-            plot(layer, intery+1, x,  fpart(intery), colorset, ctx);
+            plot(layer, ipart(intery)+1, x,  fpart(intery), colorset, ctx);
         }else{
             if(thick){
-              plot(layer, x, intery-1, rfpart(intery)/2, colorset, ctx);
-              plot(layer, x, intery, 1, colorset, ctx);     
+              plot(layer, x, ipart(intery)-1, rfpart(intery)/2, colorset, ctx);
+              plot(layer, x, ipart(intery), 1, colorset, ctx);     
             }else{
-              plot(layer, x, intery, rfpart(intery), colorset, ctx);                   
+              plot(layer, x, ipart(intery), rfpart(intery), colorset, ctx);                   
             }                 
-            plot(layer, x, intery+1, fpart(intery), colorset, ctx);
+            plot(layer, x, ipart(intery)+1, fpart(intery), colorset, ctx);
         }
         intery = intery + gradient;
     }
@@ -247,23 +255,13 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   }
 }
 
-static void bt_update_proc(Layer *layer, GContext *ctx) {
-  bool connected = bluetooth_connection_service_peek();
-  
-  if(connected){
-    graphics_context_set_fill_color(ctx, GColorBlueMoon);           
-    draw_shape(layer, BT_LOGO_POINTS.points, BT_LOGO_POINTS.num_points, 0, 0, ctx);               
-  }
-}
 
 static void update_bt_img(bool connected) {  
-  if(connected){
-    int bt_id = RESOURCE_ID_BT1;
-    if(bt_image_type == BT_IMAGE_LARGE){
-      bt_id = RESOURCE_ID_BT2;
-    }
-      
-	  set_container_image(&s_bt_img_bitmap, s_bt_img_layer, bt_id, 0, 0);  
+  if(!connected){
+    vibes_short_pulse();
+    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), true);      
+  }else{
+    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), false);      
   }
 }
 
@@ -273,13 +271,16 @@ static void update_date(){
   
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
-  int month = t->tm_mon;
-  int day = t->tm_mday;
+  uint8_t month = t->tm_mon;
+  uint8_t day = t->tm_mday;
   
-  int m1 = (month+1)/10;
-  int m2 = (month+1)%10;
-  int d1 = day/10;
-  int d2 = day%10;
+  if(date_format == MMDD_DATE_FORMAT){
+    swap(&month,&day);
+  }
+  uint8_t m1 = (month+1)/10;
+  uint8_t m2 = (month+1)%10;
+  uint8_t d1 = day/10;
+  uint8_t d2 = day%10;
   
 	set_container_image(&s_date_digits_bitmap[0], s_date_digits_layer[0], DIGIT_IMAGE_RESOURCE_IDS[d1], x, y);  
 	set_container_image(&s_date_digits_bitmap[1], s_date_digits_layer[1], DIGIT_IMAGE_RESOURCE_IDS[d2], x + 4*RECTWIDTH, y);  
@@ -317,12 +318,6 @@ static void clear_tap_display(){
 }
 
 static void bt_handler(bool connected) {
-  if(!connected){
-    vibes_short_pulse();
-    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), false);      
-  }else{
-    layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), true);      
-  }
   update_bt_img(connected);
 }
 
@@ -375,7 +370,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   int temperature = 0;
   bool got_temperature = false;
   bool neg_temp = false;  
-  static char conditions_buffer[32];
   
   // Read first item
   Tuple *t = dict_read_first(iterator);
@@ -386,10 +380,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     switch(t->key) {
     case KEY_TEMPERATURE:
       temperature = (int)t->value->int32;
+      if(temp_scale == FAHRENHEIT_SCALE){
+        temperature = temperature * 9/5 + 32;
+      }
       got_temperature = true;
-      break;
-    case KEY_CONDITIONS:
-      snprintf(conditions_buffer, sizeof(conditions_buffer), "%s", t->value->cstring);
       break;
     default:
       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
@@ -406,6 +400,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       neg_temp = true;
     }
         
+    
     int t1 = temperature/100;
     int t2 = (temperature%100)/10;
     int t3 = temperature%10;
@@ -537,6 +532,11 @@ static void main_window_load(Window *window) {
   s_bt_img_layer = bitmap_layer_create(dummy_frame);
   layer_add_child(s_bt_layer, bitmap_layer_get_layer(s_bt_img_layer)); 
   
+  int bt_id = RESOURCE_ID_BT1;
+  if(bt_image_type == BT_IMAGE_LARGE){
+    bt_id = RESOURCE_ID_BT2;
+  }
+  set_container_image(&s_bt_img_bitmap, s_bt_img_layer, bt_id, 0, 0);    
   
   //Initial draw of details
   update_date();  
@@ -584,10 +584,12 @@ static void init() {
   
   srand(time(NULL));
   
-  seconds_color = GREEN;
+  seconds_color = BLUE;
   minutes_color = WHITE;
   hours_color = WHITE;
   bt_image_type = BT_IMAGE_LARGE;
+  temp_scale = CELSIUS_SCALE; 
+  date_format = DDMM_DATE_FORMAT;
   
   // Create main Window element and assign to pointer
   s_main_window = window_create();

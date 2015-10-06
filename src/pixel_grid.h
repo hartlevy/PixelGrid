@@ -7,9 +7,12 @@
 #define NUM_COLOR 8
 #define KEY_TEMPERATURE 0
 #define KEY_CONDITIONS 1  
-#define BT_IMAGE_SMALL 1  
-#define BT_IMAGE_LARGE 2
-  
+#define BT_IMAGE_SMALL 0  
+#define BT_IMAGE_LARGE 1
+#define CELSIUS_SCALE 0  
+#define FAHRENHEIT_SCALE 1
+#define DDMM_DATE_FORMAT 0  
+#define MMDD_DATE_FORMAT 1  
   
 enum {
   TAP_DURATION_SHORT = 0x3,
@@ -68,15 +71,7 @@ static const uint8_t COLOR_SETS[NUM_COLOR][3] = {
   {GColorCyanARGB8, GColorTiffanyBlueARGB8, GColorMidnightGreenARGB8}, //CYAN
   {GColorOrangeARGB8, GColorWindsorTanARGB8, GColorArmyGreenARGB8} //ORANGE    
 };
-
-static const struct GPathInfo BT_LOGO_POINTS = {
-  14, 
-  (GPoint []){
-    {0,0}, {2,0}, {3,0}, {1,1}, {2,1}, {4,1}, 
-    {2,2}, {3,2}, {1,3}, {2,3}, {4,3}, {0,4},
-    {2,4}, {3,4}
-  }
-};     
+   
 
 static const struct GPathInfo BAT_CASE_POINTS = {
   27, 
@@ -109,8 +104,3 @@ static const struct GPathInfo CHARGE_POINTS = {
   (GPoint[]){{6,0}, {5,1}, {5,2}, {6,2}, {6,3}, {5,4}}*/
  
 };    
-
-static const struct GPathInfo SLASH_POINTS = {
-   4, 
-  (GPoint[]){{8,2}, {8,3}, {9,0}, {9,1}}
-};
