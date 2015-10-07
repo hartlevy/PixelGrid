@@ -33,7 +33,15 @@ static int temp_scale;
 static int date_format;
 
 static int tap_counter = -1;
+static int hour_pos = 0;
+static int minute_pos = 0;
+static int second_pos = 0;
+static bool hour_ready = false;
+static bool minute_ready = false;
+static bool clock_ready = false;
 
+AppTimer *timer;
+const int delta = 40;
 
 static void fillPixel(Layer *layer, int16_t i, int16_t j, GContext *ctx){
   int startX = i * (RECTWIDTH);
@@ -186,8 +194,59 @@ static GPoint createHand(int32_t angle, int16_t length, int x, int y){
   return hand;
 }
 
-
+static void anim_hands(Layer *layer, GContext *ctx) {
+  GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
+  int16_t second_hand_length = WIDTH / 2 - 3;
+  int16_t minute_hand_length = WIDTH / 2 - 6;
+  int16_t hour_hand_length = WIDTH / 2 - 9;
+  
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);
+  int hour = (((t->tm_hour) % 12) * 6) + (t->tm_min / 10);
+  
+  if(!hour_ready){
+    hour_pos+= 2;
+    if(hour_pos >= hour){
+      hour_pos = hour;
+      hour_ready = true;
+    }
+  }else if(!minute_ready){
+    minute_pos+= 2;
+    if(minute_pos >= t->tm_min){
+      minute_pos = t->tm_min;
+      minute_ready = true;
+    }
+  }else if(!clock_ready){
+    second_pos+= 2;
+    if(second_pos >= t->tm_sec){
+      second_pos = t->tm_sec;    
+      clock_ready = true;
+    }
+  }
+    
+  int32_t second_angle = TRIG_MAX_ANGLE * second_pos / 60;
+  int32_t minute_angle = TRIG_MAX_ANGLE * minute_pos / 60;
+  int32_t hour_angle = TRIG_MAX_ANGLE * hour_pos/72;
+  
+  //Create hands
+  GPoint second_hand = createHand(second_angle,second_hand_length, center.x, center.y);
+  GPoint minute_hand = createHand(minute_angle,minute_hand_length, center.x, center.y);
+  GPoint hour_hand = createHand(hour_angle,hour_hand_length, center.x, center.y);
+  
+  // Draw hand
+  drawAliasLine(layer, center.x, center.y, hour_hand.x, hour_hand.y, hours_color, true, ctx);
+  drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, true, ctx);    
+  drawAliasLine(layer, center.x, center.y, second_hand.x, second_hand.y, seconds_color, false, ctx);  
+      
+}
+  
 static void hands_update_proc(Layer *layer, GContext *ctx) {
+  
+  if(!clock_ready){
+    anim_hands(layer,ctx);
+    return;
+  }
+  
   GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
   int16_t second_hand_length = WIDTH / 2 - 3;
   int16_t minute_hand_length = WIDTH / 2 - 6;
@@ -217,6 +276,18 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   
 }
 
+void timer_callback(void *data) {
+  
+    if(!clock_ready){
+      layer_mark_dirty(s_hands_layer);
+ 
+      //Register next execution
+      timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL);
+    }
+    else{
+      app_timer_cancel(timer);
+    }
+}
 
 static void battery_update_proc(Layer *layer, GContext *ctx) {  
   BatteryChargeState state = battery_state_service_peek();
@@ -339,7 +410,9 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
 }
 
 static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
-  layer_mark_dirty(s_hands_layer);
+  if(clock_ready){
+    layer_mark_dirty(s_hands_layer);
+  }
   if(units_changed & DAY_UNIT){
       update_date();
   }
@@ -615,6 +688,7 @@ static void init() {
   battery_state_service_subscribe(battery_handler);
   bluetooth_connection_service_subscribe(bt_handler);  
   
+  timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL);  
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 }
 
