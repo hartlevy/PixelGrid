@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>PixelGrid Configuration</title>
+  <link rel='stylesheet' type='text/css' href='css/slate.min.css'>
+  <script src='js/slate.min.js'></script>
+  <style>
+  .title {
+    padding: 15px 10px;
+    text-transform: uppercase;
+    font-family: 'PT Sans', sans-serif;
+    font-size: 1.2em;
+    font-weight: 500;
+    color: #888888;
+    text-align: center;
+  }
+  </style>
+  </head>
+
+  <body>
+    <h1 class='title'>PixelGrid Configuration</h1>
+
+    <!--div class='item-container'>
+      <div class='item-container-content'>
+        <div class='item'>
+          Use this configuration page to choose the settings you would like applied to this app.
+        </div>
+      </div>
+    </div-->
+
+    <div class='item-container'>
+      <div class='item-container-header'>Colors</div>
+      <div class='item-container-content'>
+        <label class="item">
+          Hour Hand
+          <select id="hour_select" name="select-1" dir='rtl' class="item-select">
+            <option class="item-select-option" value="0" selected>White</option>
+            <option class="item-select-option" value="1" >Red</option>
+            <option class="item-select-option" value="2">Blue</option>
+	    <option class="item-select-option" value="3">Green</option>
+	    <option class="item-select-option" value="4">Yellow</option>
+	    <option class="item-select-option" value="5">Purple</option>
+          </select>
+        </label>
+        <label class="item">
+          Minute Hand
+          <select id="minute_select" name="select-2" dir='rtl' class="item-select">
+            <option class="item-select-option" value="0" selected>White</option>
+            <option class="item-select-option" value="1" >Red</option>
+            <option class="item-select-option" value="2">Blue</option>
+	    <option class="item-select-option" value="3">Green</option>
+	    <option class="item-select-option" value="4">Yellow</option>
+	    <option class="item-select-option" value="5">Purple</option>
+          </select>
+        </label>
+        <label class="item">
+          Second Hand
+          <select id="second_select" name="select-3" dir='rtl' class="item-select">
+            <option class="item-select-option" value="0" >White</option>
+            <option class="item-select-option" value="1" selected>Red</option>
+            <option class="item-select-option" value="2">Blue</option>
+	    <option class="item-select-option" value="3">Green</option>
+	    <option class="item-select-option" value="4">Yellow</option>
+	    <option class="item-select-option" value="5">Purple</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class='item-container'>
+      <div class='item-container-header'>Options</div>
+      <div class='item-container-content'>
+        <label class='item'>
+          Hide Seconds
+          <input id='hide_seconds_checkbox' type='checkbox' class='item-toggle'>
+        </label>
+      	<label class="item">
+        Temperature Scale
+        <select id="temp_select" name="select-4" dir='rtl' class="item-select">
+          <option class="item-select-option" value="0">Celsius</option>
+          <option class="item-select-option" value="1" selected>Fahrenheit</option>
+        </select>
+       </label>
+      </div>
+    </div>
+
+    <div class='item-container'>
+      <div class='button-container'>
+        <input id='submit_button' type='button' class='item-button' value='SUBMIT'>
+      </div>
+    </div>
+  </body>
+  <script>
+  function getConfigData() {
+    var secondColorList = document.getElementById('second_select');
+    var minuteColorList = document.getElementById('minute_select');
+    var hourColorList = document.getElementById('hour_select');
+    var tempScaleList = document.getElementById('temp_select');
+    var hideSecondsCheckbox= document.getElementById('hide_seconds_checkbox');
+ 
+    var options = {
+      'second_color': secondColorList.options[secondColorList.selectedIndex].value,
+      'minute_color': minuteColorList.options[minuteColorList.selectedIndex].value,
+      'hour_color': hourColorList.options[hourColorList.selectedIndex].value,
+      'temp_scale': tempScaleList.options[tempScaleList.selectedIndex].value,
+      'hide_seconds': hideSecondsCheckbox= .checked
+    };
+    // Save for next launch
+    localStorage['second_color']: = options['second_color'];
+    localStorage['minute_color']: = options['minute_color'];
+    localStorage['hour_color']: = options['hour_color'];
+    localStorage['temp_scale'] = options['temp_scale'];
+    localStorage['hide_seconds'] = options['hide_seconds'];
+    console.log('Got options: ' + JSON.stringify(options));
+    return options;
+  }
+
+  var persistRead = function(key, defaultValue) {
+    if(localStorage.getItem(key) === null) {
+      return defaultValue;
+    } else {
+      return localStorage.getItem(key);
+    }
+  };
+  function getQueryParam(variable, defaultValue) {
+    var query = location.search.substring(1);
+    var vars = query.split('&');
+    for (var i = 0; i < vars.length; i++) {
+      var pair = vars[i].split('=');
+      if (pair[0] === variable) {
+        return decodeURIComponent(pair[1]);
+      }
+    }
+    return defaultValue || false;
+  }
+ 
+  var submitButton = document.getElementById('submit_button');
+  submitButton.addEventListener('click', function() {
+    console.log('Submit');
+    // Set the return URL depending on the runtime environment
+    var return_to = getQueryParam('return_to', 'pebblejs://close#');
+    document.location = return_to + encodeURIComponent(JSON.stringify(getConfigData()));
+  });
+  (function() {
+    var secondColorList = document.getElementById('second_select');
+    var minuteColorList = document.getElementById('minute_select');
+    var hourColorList = document.getElementById('hour_select');
+    var tempScaleList = document.getElementById('temp_select');
+    var hideSecondsCheckbox= document.getElementById('hide_seconds_checkbox');
+    // Load any previously saved configuration, if available
+    if(localStorage['hide_seconds']) {
+      hideSecondsCheckbox.checked = JSON.parse(localStorage['hide_seconds']);
+      secondColorList.selectedIndex = localStorage['second_color'];
+      hourColorList.selectedIndex = localStorage['hour_color'];
+      minuteColorList.selectedIndex = localStorage['minute_color'];
+      tempScaleList.selectedIndex = localStorage['temp_scale'];
+    }
+  })();
+  </script>
+</html>
