@@ -1,32 +1,23 @@
-var msg_queue = [];
+function updateMenu(conf){
+  var configData = JSON.parse(decodeURIComponent(e.response));
+  console.log('Configuration page returned: ' + JSON.stringify(configData));
 
-function msg_ack(e) {
-  console.log("Sent msg.");  
-  msg_queue.shift();
-  sendMessages();
-}
-
-function msg_nak(e) {
-  console.log("Failed msg. resending");
-  sendMessages();
-}
-
-function sendMessages() {
-  if(msg_queue.length > 0) {
-    Pebble.sendAppMessage(msg_queue[0], msg_ack, msg_nak);
+  var dict = {};
+  dict['KEY_MESSAGE_TYPE'] = 1;
+  if(configData['hide_seconds'] === true) {
+    dict['KEY_HIDE_SECONDS'] = configData['hide_seconds'];
   }
-}
+  dict['KEY_HOUR_COLOR'] = configData['hour_color'];
+  dict['KEY_SECOND_COLOR'] = configData['second_color'];
+  dict['KEY_MINUTE_COLOR'] = configData['minute_color'];
+  dict['KEY_TEMP_SCALE'] = configData['temp_scale'];  
 
-function updateMenu(conf) {
-  var colors = JSON.parse(conf);
-
-  var msg = {
-    "secondColor": colors[0],
-    "1": colors[1],
-    "2": colors[2]
-  };
-  msg_queue.push(msg);  
-  sendMessages();
+  // Send to watchapp
+  Pebble.sendAppMessage(dict, function() {
+    console.log('Send successful: ' + JSON.stringify(dict));
+  }, function() {
+    console.log('Send failed!');
+  });
 }
 
 Pebble.addEventListener('ready', function(e) {

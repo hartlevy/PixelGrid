@@ -1,7 +1,12 @@
 {
     "appKeys": {
-        "KEY_CONDITIONS": 1,
-        "KEY_TEMPERATURE": 0
+        "KEY_HIDE_SECONDS": 6,
+        "KEY_HOUR_COLOR": 2,
+        "KEY_MESSAGE_TYPE": 0,
+        "KEY_MINUTE_COLOR": 3,
+        "KEY_SECOND_COLOR": 4,
+        "KEY_TEMPERATURE": 1,
+        "KEY_TEMP_SCALE": 5
     },
     "capabilities": [
         "location",
@@ -231,8 +236,8 @@
     "targetPlatforms": [
         "basalt"
     ],
-    "uuid": "b515e15a-8fa8-4014-abf6-6375df579c7b",
-    "versionLabel": "1.1",
+    "uuid": "df0c37f2-05dc-483a-8904-cf51ab003c22",
+    "versionLabel": "2.0",
     "watchapp": {
         "watchface": true
     }

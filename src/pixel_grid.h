@@ -6,7 +6,6 @@
 #define HEIGHT (168 / RECTHEIGHT)
 #define NUM_COLOR 8
 #define KEY_TEMPERATURE 0
-#define KEY_CONDITIONS 1  
 #define BT_IMAGE_SMALL 0  
 #define BT_IMAGE_LARGE 1
 #define CELSIUS_SCALE 0  

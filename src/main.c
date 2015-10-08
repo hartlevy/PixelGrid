@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "pixel_grid.h"
+#include "gbitmap_color_palette_manipulator.h"
   
 static Window *s_main_window;
 static Layer *bg_layer, *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer, *s_temp_layer;
@@ -96,6 +97,7 @@ static BitmapLayer* create_bitmap_layer(GBitmap *bitmap, Layer *window_layer,
     BitmapLayer* bmp_layer = bitmap_layer_create(frame);
     bitmap_layer_set_background_color(bmp_layer,GColorBlack);
     bitmap_layer_set_bitmap(bmp_layer, bitmap);  
+    //replace_gbitmap_color(GColorOxfordBlue, GColorBlack, bitmap, bmp_layer);  
     layer_add_child(window_layer, bitmap_layer_get_layer(bmp_layer));  
     return bmp_layer;
 }
@@ -194,7 +196,8 @@ static GPoint createHand(int32_t angle, int16_t length, int x, int y){
   return hand;
 }
 
-static void anim_hands(Layer *layer, GContext *ctx) {
+
+static void hands_update_proc(Layer *layer, GContext *ctx) {
   GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
   int16_t second_hand_length = WIDTH / 2 - 3;
   int16_t minute_hand_length = WIDTH / 2 - 6;
@@ -202,8 +205,11 @@ static void anim_hands(Layer *layer, GContext *ctx) {
   
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
+  
   int hour = (((t->tm_hour) % 12) * 6) + (t->tm_min / 10);
   
+  //Start-up animation.
+  //Flags indicate when each hand is done
   if(!hour_ready){
     hour_pos+= 2;
     if(hour_pos >= hour){
@@ -222,41 +228,15 @@ static void anim_hands(Layer *layer, GContext *ctx) {
       second_pos = t->tm_sec;    
       clock_ready = true;
     }
+  }else{
+    hour_pos = hour;
+    second_pos = t->tm_sec;    
+    minute_pos = t->tm_min;
   }
-    
+  
   int32_t second_angle = TRIG_MAX_ANGLE * second_pos / 60;
   int32_t minute_angle = TRIG_MAX_ANGLE * minute_pos / 60;
-  int32_t hour_angle = TRIG_MAX_ANGLE * hour_pos/72;
-  
-  //Create hands
-  GPoint second_hand = createHand(second_angle,second_hand_length, center.x, center.y);
-  GPoint minute_hand = createHand(minute_angle,minute_hand_length, center.x, center.y);
-  GPoint hour_hand = createHand(hour_angle,hour_hand_length, center.x, center.y);
-  
-  // Draw hand
-  drawAliasLine(layer, center.x, center.y, hour_hand.x, hour_hand.y, hours_color, true, ctx);
-  drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, true, ctx);    
-  drawAliasLine(layer, center.x, center.y, second_hand.x, second_hand.y, seconds_color, false, ctx);  
-      
-}
-  
-static void hands_update_proc(Layer *layer, GContext *ctx) {
-  
-  if(!clock_ready){
-    anim_hands(layer,ctx);
-    return;
-  }
-  
-  GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
-  int16_t second_hand_length = WIDTH / 2 - 3;
-  int16_t minute_hand_length = WIDTH / 2 - 6;
-  int16_t hour_hand_length = WIDTH / 2 - 9;
-  
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);
-  int32_t second_angle = TRIG_MAX_ANGLE * t->tm_sec / 60;
-  int32_t minute_angle = TRIG_MAX_ANGLE * t->tm_min / 60;
-  int32_t hour_angle = (TRIG_MAX_ANGLE * ((((t->tm_hour) % 12) * 6) + (t->tm_min / 10))) / (12 * 6);
+  int32_t hour_angle = TRIG_MAX_ANGLE * hour_pos / 72;
   
   //Create hands
   GPoint second_hand = createHand(second_angle,second_hand_length, center.x, center.y);
@@ -277,15 +257,11 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
 }
 
 void timer_callback(void *data) {
-  
     if(!clock_ready){
       layer_mark_dirty(s_hands_layer);
  
       //Register next execution
       timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL);
-    }
-    else{
-      app_timer_cancel(timer);
     }
 }
 
@@ -339,12 +315,14 @@ static void update_bt_img(bool connected) {
 static void update_date(){
   uint8_t x = 0;//(WIDTH-19)*RECTWIDTH;
   uint8_t y = 0;//;(WIDTH + 2)*RECTWIDTH;  
+  GPoint origin = layer_get_frame(s_date_layer).origin;
   
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
   uint8_t month = t->tm_mon;
   uint8_t day = t->tm_mday;
-  
+  uint8_t wday = t->tm_wday;
+
   if(date_format == MMDD_DATE_FORMAT){
     swap(&month,&day);
   }
@@ -358,35 +336,21 @@ static void update_date(){
 	set_container_image(&s_date_digits_bitmap[2], s_date_digits_layer[2], RESOURCE_ID_SLASH, x + 8*RECTWIDTH, y);  
 	set_container_image(&s_date_digits_bitmap[3], s_date_digits_layer[3], DIGIT_IMAGE_RESOURCE_IDS[m1], x + 11*RECTWIDTH, y);  
 	set_container_image(&s_date_digits_bitmap[4], s_date_digits_layer[4], DIGIT_IMAGE_RESOURCE_IDS[m2], x + 15*RECTWIDTH, y);    
+
+	set_container_image(&s_day_bitmap, s_day_layer, DAY_NAME_IMAGE_RESOURCE_IDS[wday], origin.x+6*RECTWIDTH, origin.y);    
 }
 
 
-static void show_tap_display(){
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);  
-  int day = t->tm_wday;
+static void show_tap_display(bool show){
+  //swap visible layers
+  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), !show);
+  layer_set_hidden(s_date_layer, show); 
   
-  GPoint origin = layer_get_frame(s_date_layer).origin;
-  
-	set_container_image(&s_day_bitmap, s_day_layer, DAY_NAME_IMAGE_RESOURCE_IDS[day], origin.x+6*RECTWIDTH, origin.y);  
-    
-  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), false);
-  layer_set_hidden(s_date_layer, true); 
-  
-  layer_set_hidden(s_temp_layer, false);     
-  layer_set_hidden(s_bt_layer, true);  
-  layer_set_hidden(s_battery_layer, true);
+  layer_set_hidden(s_temp_layer, !show);     
+  layer_set_hidden(s_bt_layer, show);  
+  layer_set_hidden(s_battery_layer, show);
 }
 
-
-static void clear_tap_display(){
-  layer_set_hidden(bitmap_layer_get_layer(s_day_layer), true);
-  layer_set_hidden(s_date_layer, false); 
-  
-  layer_set_hidden(s_temp_layer, true);     
-  layer_set_hidden(s_bt_layer, false);  
-  layer_set_hidden(s_battery_layer, false);  
-}
 
 static void bt_handler(bool connected) {
   update_bt_img(connected);
@@ -405,7 +369,7 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
   seconds_color = (seconds_color + NUM_COLOR)%NUM_COLOR;  
 
   tap_counter = TAP_DURATION_MED;
-  show_tap_display();
+  show_tap_display(true);
   layer_mark_dirty(s_hands_layer);   
 }
 
@@ -432,22 +396,63 @@ static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
   
   if(tap_counter >= 0){
     if(tap_counter == 0){
-      clear_tap_display();
+      show_tap_display(false);
     }
     tap_counter--;
   }  
 }
 
-static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
-  // Store incoming information
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {  
+  // Read first item
+  Tuple *t = dict_read_first(iterator);
+
+  if(t->key == KEY_MESSAGE_TYPE){
+    if((int)t->value->int32 == WEATHER_MESSAGE){
+      parse_weather_message(iterator,  context);
+    }
+    else if((int)t->value->int32 == CONFIG_MESSAGE){
+      parse_config_message(iterator,  context);
+    }
+  }else{
+    return;
+  }
+}
+
+static void parse_config_message(DictionaryIterator *iterator, void *context){
+  
+  Tuple *t = dict_read_next(iterator);
+    // For all items
+  while(t != NULL) {
+    // Which key was received?
+    switch(t->key) {
+    case KEY_HIDE_SECONDS:
+      break;
+    case KEY_TEMP_SCALE:
+      temp_scale = (int)t->value->int32;      
+      break;      
+    case KEY_HOUR_COLOR:
+      hours_color = (int)t->value->int32;
+      break;
+    case KEY_MINUTE_COLOR:
+      minutes_color = (int)t->value->int32;
+      break;
+    case KEY_SECOND_COLOR:
+      seconds_color = (int)t->value->int32;
+      break;      
+    default:
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+      break;
+    }
+  }
+}
+
+static void parse_weather_message(DictionaryIterator *iterator, void *context){
   int temperature = 0;
   bool got_temperature = false;
   bool neg_temp = false;  
   
-  // Read first item
-  Tuple *t = dict_read_first(iterator);
-
-  // For all items
+  Tuple *t = dict_read_next(iterator);
+    // For all items
   while(t != NULL) {
     // Which key was received?
     switch(t->key) {
@@ -472,7 +477,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       temperature = -temperature;
       neg_temp = true;
     }
-        
     
     int t1 = temperature/100;
     int t2 = (temperature%100)/10;
