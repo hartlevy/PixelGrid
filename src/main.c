@@ -32,6 +32,8 @@ static int hours_color;
 static int bt_image_type;
 static int temp_scale;
 static int date_format;
+static bool hide_second_hand;
+static bool show_animation;
 
 static int tap_counter = -1;
 static int hour_pos = 0;
@@ -210,23 +212,25 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   
   //Start-up animation.
   //Flags indicate when each hand is done
-  if(!hour_ready){
-    hour_pos+= 2;
-    if(hour_pos >= hour){
-      hour_pos = hour;
-      hour_ready = true;
-    }
-  }else if(!minute_ready){
-    minute_pos+= 2;
-    if(minute_pos >= t->tm_min){
-      minute_pos = t->tm_min;
-      minute_ready = true;
-    }
-  }else if(!clock_ready){
-    second_pos+= 2;
-    if(second_pos >= t->tm_sec){
-      second_pos = t->tm_sec;    
-      clock_ready = true;
+  if(show_animation && !clock_ready){
+    if(!hour_ready){
+      hour_pos+= 2;
+      if(hour_pos >= hour){
+        hour_pos = hour;
+        hour_ready = true;
+      }
+    }else if(!minute_ready){
+      minute_pos+= 2;
+      if(minute_pos >= t->tm_min){
+        minute_pos = t->tm_min;
+        minute_ready = true;
+      }
+    }else{
+      second_pos+= 2;
+      if(second_pos >= t->tm_sec){
+        second_pos = t->tm_sec;    
+        clock_ready = true;
+      }
     }
   }else{
     hour_pos = hour;
@@ -245,8 +249,10 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   
   // Draw hand
   drawAliasLine(layer, center.x, center.y, hour_hand.x, hour_hand.y, hours_color, true, ctx);
-  drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, true, ctx);    
-  drawAliasLine(layer, center.x, center.y, second_hand.x, second_hand.y, seconds_color, false, ctx);  
+  drawAliasLine(layer, center.x, center.y, minute_hand.x, minute_hand.y, minutes_color, true, ctx); 
+  if(!hide_second_hand){
+    drawAliasLine(layer, center.x, center.y, second_hand.x, second_hand.y, seconds_color, false, ctx); 
+  }
   
   // Draw PM
   if(t->tm_hour >= 12){  
@@ -308,6 +314,11 @@ static void update_bt_img(bool connected) {
     vibes_short_pulse();
     layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), true);      
   }else{
+    int bt_id = RESOURCE_ID_BT1;
+    if(bt_image_type == BT_IMAGE_LARGE){
+      bt_id = RESOURCE_ID_BT2;
+    }
+    set_container_image(&s_bt_img_bitmap, s_bt_img_layer, bt_id, 0, 0);      
     layer_set_hidden(bitmap_layer_get_layer(s_bt_img_layer), false);      
   }
 }
@@ -351,6 +362,18 @@ static void show_tap_display(bool show){
   layer_set_hidden(s_battery_layer, show);
 }
 
+static void request_temperature(){
+  // Begin dictionary
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+
+  // Add a key-value pair
+  dict_write_uint8(iter, 0, 0);
+
+  // Send the message!
+  app_message_outbox_send();
+}
+
 
 static void bt_handler(bool connected) {
   update_bt_img(connected);
@@ -361,13 +384,14 @@ static void battery_handler(BatteryChargeState new_state) {
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
-  if (direction > 0){
+  /*if (direction > 0){
     seconds_color ++;
   }else{
     seconds_color --;
   }
   seconds_color = (seconds_color + NUM_COLOR)%NUM_COLOR;  
-
+*/
+  
   tap_counter = TAP_DURATION_MED;
   show_tap_display(true);
   layer_mark_dirty(s_hands_layer);   
@@ -375,7 +399,9 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
 
 static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
   if(clock_ready){
-    layer_mark_dirty(s_hands_layer);
+    if((!hide_second_hand && (units_changed & SECOND_UNIT)) || (units_changed & MINUTE_UNIT)){
+        layer_mark_dirty(s_hands_layer);
+    }
   }
   if(units_changed & DAY_UNIT){
       update_date();
@@ -383,67 +409,72 @@ static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
   
   // Get weather update every 30 minutes
   if(t->tm_min % 30 == 0 && t->tm_sec % 60 == 0) {
-    // Begin dictionary
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-
-    // Add a key-value pair
-    dict_write_uint8(iter, 0, 0);
-
-    // Send the message!
-    app_message_outbox_send();
+    request_temperature();
   }  
   
   if(tap_counter >= 0){
     if(tap_counter == 0){
+      //switch to timer
       show_tap_display(false);
     }
     tap_counter--;
   }  
 }
 
-static void inbox_received_callback(DictionaryIterator *iterator, void *context) {  
-  // Read first item
-  Tuple *t = dict_read_first(iterator);
-
-  if(t->key == KEY_MESSAGE_TYPE){
-    if((int)t->value->int32 == WEATHER_MESSAGE){
-      parse_weather_message(iterator,  context);
-    }
-    else if((int)t->value->int32 == CONFIG_MESSAGE){
-      parse_config_message(iterator,  context);
-    }
-  }else{
-    return;
-  }
-}
-
 static void parse_config_message(DictionaryIterator *iterator, void *context){
   
-  Tuple *t = dict_read_next(iterator);
+  Tuple *t = dict_read_first(iterator);
+  
+APP_LOG(APP_LOG_LEVEL_ERROR, "configgingg!!");  
     // For all items
   while(t != NULL) {
     // Which key was received?
     switch(t->key) {
     case KEY_HIDE_SECONDS:
+      hide_second_hand = (int)(t->value->int32);
+      persist_write_bool(KEY_HIDE_SECONDS,hide_second_hand);
       break;
-    case KEY_TEMP_SCALE:
-      temp_scale = (int)t->value->int32;      
+    case KEY_BT_LOGO_TYPE:
+      if((int)t->value->int32){
+        bt_image_type = BT_IMAGE_LARGE;
+      }else{
+        bt_image_type = BT_IMAGE_SMALL;        
+      }
+      update_bt_img(bluetooth_connection_service_peek());       
+      persist_write_int(KEY_BT_LOGO_TYPE, bt_image_type);   
       break;      
+    case KEY_TEMP_SCALE:
+      if(temp_scale != (int)t->value->int32){
+        temp_scale = (int)t->value->int32;
+        request_temperature();
+      }      
+      persist_write_int(KEY_TEMP_SCALE, temp_scale);            
+      break;      
+    case KEY_SHOW_ANIMATION:
+      show_animation = (int)(t->value->int32);
+      persist_write_bool(KEY_SHOW_ANIMATION,show_animation);
+      break;
     case KEY_HOUR_COLOR:
       hours_color = (int)t->value->int32;
+      persist_write_int(KEY_HOUR_COLOR, hours_color);                     
       break;
     case KEY_MINUTE_COLOR:
       minutes_color = (int)t->value->int32;
+      persist_write_int(KEY_MINUTE_COLOR, minutes_color);                              
       break;
     case KEY_SECOND_COLOR:
       seconds_color = (int)t->value->int32;
+      persist_write_int(KEY_SECOND_COLOR, seconds_color);                                       
       break;      
     default:
       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
       break;
     }
+    
+    t = dict_read_next(iterator);
   }
+  
+  layer_mark_dirty(s_hands_layer);
 }
 
 static void parse_weather_message(DictionaryIterator *iterator, void *context){
@@ -451,7 +482,10 @@ static void parse_weather_message(DictionaryIterator *iterator, void *context){
   bool got_temperature = false;
   bool neg_temp = false;  
   
-  Tuple *t = dict_read_next(iterator);
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Getting weather");
+  
+  Tuple *t = dict_read_first(iterator);
+
     // For all items
   while(t != NULL) {
     // Which key was received?
@@ -472,6 +506,8 @@ static void parse_weather_message(DictionaryIterator *iterator, void *context){
     t = dict_read_next(iterator);
   }  
   
+  APP_LOG(APP_LOG_LEVEL_ERROR, "Temp: %d", temperature);
+
   if(got_temperature){
     if(temperature < 0){
       temperature = -temperature;
@@ -498,6 +534,21 @@ static void parse_weather_message(DictionaryIterator *iterator, void *context){
     set_container_image(&s_temp_digits_bitmap[2], s_temp_digits_layer[2], DIGIT_IMAGE_RESOURCE_IDS[t3], x, 0);  
     x += 4*RECTWIDTH;  	
     set_container_image(&s_temp_digits_bitmap[3], s_temp_digits_layer[3], RESOURCE_ID_DEGREE, x, 0);          
+  }
+}
+
+static void inbox_received_callback(DictionaryIterator *iterator, void *context) {  
+  // Read first item
+  Tuple *weather_tuple = dict_find(iterator, WEATHER_MESSAGE);
+  //Tuple *config_tuple = dict_find(iterator, CONFIG_MESSAGE);
+  
+  if((int)weather_tuple->value->int32 == 1){
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Get weather");
+    parse_weather_message(iterator,  context);
+  }
+  else{
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Get config");    
+    parse_config_message(iterator,  context);
   }
 }
 
@@ -608,12 +659,7 @@ static void main_window_load(Window *window) {
   //Bluetooth img
   s_bt_img_layer = bitmap_layer_create(dummy_frame);
   layer_add_child(s_bt_layer, bitmap_layer_get_layer(s_bt_img_layer)); 
-  
-  int bt_id = RESOURCE_ID_BT1;
-  if(bt_image_type == BT_IMAGE_LARGE){
-    bt_id = RESOURCE_ID_BT2;
-  }
-  set_container_image(&s_bt_img_bitmap, s_bt_img_layer, bt_id, 0, 0);    
+    
   
   //Initial draw of details
   update_date();  
@@ -664,9 +710,37 @@ static void init() {
   seconds_color = BLUE;
   minutes_color = WHITE;
   hours_color = WHITE;
-  bt_image_type = BT_IMAGE_LARGE;
+  bt_image_type = BT_IMAGE_SMALL;
   temp_scale = CELSIUS_SCALE; 
   date_format = DDMM_DATE_FORMAT;
+  hide_second_hand = false;
+  show_animation = true;  
+  
+  if(persist_exists(KEY_SECOND_COLOR)){
+    seconds_color = persist_read_int(KEY_SECOND_COLOR);
+  }
+  if(persist_exists(KEY_HOUR_COLOR)){
+    hours_color = persist_read_int(KEY_HOUR_COLOR);
+  }
+  if(persist_exists(KEY_MINUTE_COLOR)){
+    minutes_color = persist_read_int(KEY_MINUTE_COLOR);
+  }
+  if(persist_exists(KEY_TEMP_SCALE)){
+    temp_scale = persist_read_int(KEY_TEMP_SCALE);
+  }
+  if(persist_exists(KEY_BT_LOGO_TYPE)){
+      bt_image_type = persist_read_int(KEY_BT_LOGO_TYPE);
+  }
+  if(persist_exists(KEY_SHOW_ANIMATION)){
+    show_animation = persist_read_bool(KEY_SHOW_ANIMATION);
+  }  
+  if(persist_exists(KEY_HIDE_SECONDS)){
+    hide_second_hand = persist_read_bool(KEY_HIDE_SECONDS);
+  }  
+  /*if(persist_exists(KEY_DATE_FORMAT)){
+    date_format = persist_read_int(KEY_DATE_FORMAT);
+  }  */
+  
   
   // Create main Window element and assign to pointer
   s_main_window = window_create();
@@ -692,7 +766,12 @@ static void init() {
   battery_state_service_subscribe(battery_handler);
   bluetooth_connection_service_subscribe(bt_handler);  
   
-  timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL);  
+  
+  if(show_animation){
+    timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL); 
+  }else{
+    clock_ready = true;
+  }
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 }
 

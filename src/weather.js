@@ -24,7 +24,7 @@ function locationSuccess(pos) {
       
       // Assemble dictionary using our keys
       var dictionary = {
-        "KEY_MESSAGE_TYPE": 0
+        "isWeather": 1,
         "KEY_TEMPERATURE": temperature
       };
 

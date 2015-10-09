@@ -1,12 +1,15 @@
 {
     "appKeys": {
-        "KEY_HIDE_SECONDS": 6,
-        "KEY_HOUR_COLOR": 2,
-        "KEY_MESSAGE_TYPE": 0,
-        "KEY_MINUTE_COLOR": 3,
-        "KEY_SECOND_COLOR": 4,
-        "KEY_TEMPERATURE": 1,
-        "KEY_TEMP_SCALE": 5
+        "KEY_BT_LOGO_TYPE": 8,
+        "KEY_HIDE_SECONDS": 7,
+        "KEY_HOUR_COLOR": 3,
+        "KEY_MINUTE_COLOR": 4,
+        "KEY_SECOND_COLOR": 5,
+        "KEY_SHOW_ANIMATION": 9,
+        "KEY_TEMPERATURE": 2,
+        "KEY_TEMP_SCALE": 6,
+        "isConfig": 1,
+        "isWeather": 0
     },
     "capabilities": [
         "location",
