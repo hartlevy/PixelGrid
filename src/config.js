@@ -16,7 +16,6 @@ function updateMenu(conf){
   dict['KEY_HIDE_SECONDS'] = parseInt(configData['hide_seconds']);
   
 
-  console.log('Dict: ' + JSON.stringify(dict));
   // Send to watchapp
   Pebble.sendAppMessage(dict, function() {
     console.log('Send successful: ' + JSON.stringify(dict));
