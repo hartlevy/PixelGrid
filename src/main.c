@@ -3,7 +3,7 @@
 #include "gbitmap_color_palette_manipulator.h"
   
 static Window *s_main_window;
-static Layer *bg_layer, *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer, *s_temp_layer;
+static Layer *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer, *s_temp_layer;
 
 static BitmapLayer *s_faces_layer[9];
 static GBitmap *s_faces_bitmap[9];
@@ -201,10 +201,18 @@ static GPoint createHand(int32_t angle, int16_t length, int x, int y){
 
 static void hands_update_proc(Layer *layer, GContext *ctx) {
   GPoint center = { .x = WIDTH/2, .y = WIDTH/2-1};
-  int16_t second_hand_length = WIDTH / 2 - 3;
-  int16_t minute_hand_length = WIDTH / 2 - 6;
-  int16_t hour_hand_length = WIDTH / 2 - 9;
+  int16_t second_hand_length = (WIDTH / 2)*5/6;
+  int16_t minute_hand_length = (WIDTH / 2)*2/3;
+  int16_t hour_hand_length = (WIDTH / 2)/2;
   
+  uint8_t pm_x = WIDTH - 10;
+  uint8_t pm_y = WIDTH - 2;
+  
+  #if defined(PBL_ROUND)  
+  pm_y = WIDTH/2 + 18;
+  pm_x = WIDTH/2 - 4;  
+  center.y = center.y + 1;
+  #endif
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
   
@@ -255,9 +263,9 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   }
   
   // Draw PM
-  if(t->tm_hour >= 12){  
+  if(t->tm_hour >= 0){  
     graphics_context_set_fill_color(ctx, GColorYellow); 
-    draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, WIDTH-10, WIDTH-2, ctx);  
+    draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, pm_x, pm_y, ctx);  
   }    
   
 }
@@ -326,6 +334,12 @@ static void update_bt_img(bool connected) {
 static void update_date(){
   uint8_t x = 0;//(WIDTH-19)*RECTWIDTH;
   uint8_t y = 0;//;(WIDTH + 2)*RECTWIDTH;  
+  uint8_t day_x = 6*RECTWIDTH;
+  uint8_t day_y = 0;
+  #if defined(PBL_ROUND)
+  day_x = 3*RECTWIDTH;
+  #endif  
+  
   GPoint origin = layer_get_frame(s_date_layer).origin;
   
   time_t now = time(NULL);
@@ -348,7 +362,8 @@ static void update_date(){
 	set_container_image(&s_date_digits_bitmap[3], s_date_digits_layer[3], DIGIT_IMAGE_RESOURCE_IDS[m1], x + 11*RECTWIDTH, y);  
 	set_container_image(&s_date_digits_bitmap[4], s_date_digits_layer[4], DIGIT_IMAGE_RESOURCE_IDS[m2], x + 15*RECTWIDTH, y);    
 
-	set_container_image(&s_day_bitmap, s_day_layer, DAY_NAME_IMAGE_RESOURCE_IDS[wday], origin.x+6*RECTWIDTH, origin.y);    
+
+	set_container_image(&s_day_bitmap, s_day_layer, DAY_NAME_IMAGE_RESOURCE_IDS[wday], origin.x+day_x, origin.y + day_y);    
 }
 
 
@@ -519,21 +534,40 @@ static void parse_weather_message(DictionaryIterator *iterator, void *context){
     int t3 = temperature%10;
     
     int x = 0;
+    int y = 0;
+    #if defined(PBL_ROUND)
+    y = y + RECTWIDTH;    
+    if(t1 == 0 && !neg_temp){  
+      x = x + RECTWIDTH;
+    }
+    #endif
+    
     if(t1 != 0){
-      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], DIGIT_IMAGE_RESOURCE_IDS[t1], x, 0);  
+      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], DIGIT_IMAGE_RESOURCE_IDS[t1], x, y);  
       x += 4*RECTWIDTH;
     } else if(neg_temp){
-      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], RESOURCE_ID_NEGATIVE, x, 0);        
+      set_container_image(&s_temp_digits_bitmap[0], s_temp_digits_layer[0], RESOURCE_ID_NEGATIVE, x, y);        
       x += 4*RECTWIDTH;
     } else if(s_temp_digits_bitmap[0] != NULL){
       gbitmap_destroy(s_temp_digits_bitmap[0]);
       s_temp_digits_bitmap[0] = NULL;
+      bitmap_layer_set_bitmap(s_temp_digits_layer[0], NULL);      
     }
-    set_container_image(&s_temp_digits_bitmap[1], s_temp_digits_layer[1], DIGIT_IMAGE_RESOURCE_IDS[t2], x, 0);  
+    if(t2 != 0 || t1 != 0){
+      set_container_image(&s_temp_digits_bitmap[1], s_temp_digits_layer[1], DIGIT_IMAGE_RESOURCE_IDS[t2], x, y);  
+      x += 4*RECTWIDTH;  	
+    }
+    else{
+      x += 2*RECTWIDTH;
+      if(s_temp_digits_bitmap[1] != NULL){
+        gbitmap_destroy(s_temp_digits_bitmap[1]);
+        s_temp_digits_bitmap[1] = NULL;
+        bitmap_layer_set_bitmap(s_temp_digits_layer[1], NULL);
+      }
+    }
+    set_container_image(&s_temp_digits_bitmap[2], s_temp_digits_layer[2], DIGIT_IMAGE_RESOURCE_IDS[t3], x, y);  
     x += 4*RECTWIDTH;  	
-    set_container_image(&s_temp_digits_bitmap[2], s_temp_digits_layer[2], DIGIT_IMAGE_RESOURCE_IDS[t3], x, 0);  
-    x += 4*RECTWIDTH;  	
-    set_container_image(&s_temp_digits_bitmap[3], s_temp_digits_layer[3], RESOURCE_ID_DEGREE, x, 0);          
+    set_container_image(&s_temp_digits_bitmap[3], s_temp_digits_layer[3], RESOURCE_ID_DEGREE, x, y);          
   }
 }
 
@@ -570,45 +604,69 @@ static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
   GRect dummy_frame = { {0, 0}, {0, 0} };
   
+  uint8_t c_x = RECTWIDTH*(int)(bounds.size.w/(2*RECTWIDTH));
+  //uint8_t datelayer_y = c_x + RECTWIDTH*20;
+  uint8_t batlayer_y = c_x + RECTWIDTH*21;  
+  uint8_t batlayer_x = RECTWIDTH;  
+  uint8_t daylayer_y = c_x + RECTWIDTH*20;  
+  uint8_t daylayer_x = c_x - RECTWIDTH;    
+  uint8_t bt_y = c_x + RECTWIDTH*14;  
+  uint8_t bt_x = RECTWIDTH;    
+  #if defined(PBL_ROUND)
+  //datelayer_y = 0;
+  batlayer_y = 2*RECTWIDTH;
+  batlayer_x = c_x - 6*RECTWIDTH;
+  daylayer_y = c_x + RECTWIDTH*13;  
+  daylayer_x = c_x - RECTWIDTH*8;    
+  bt_x = c_x - 3*RECTWIDTH;
+  bt_y = c_x - RECTWIDTH*17;
+  
+  s_faces_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_ROUND);  
+  s_faces_layer[0] = create_bitmap_layer(s_faces_bitmap[0], window_layer, 0,0,RECTWIDTH*WIDTH,RECTWIDTH*HEIGHT);
+    
+  #elif defined (PBL_RECT)
   //create bg layers
+  uint8_t datelayer_y = c_x + RECTWIDTH*20;
+  
   s_faces_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM1);  
-  s_faces_layer[0] = create_bitmap_layer(s_faces_bitmap[0], window_layer, RECTWIDTH*17,0,RECTWIDTH*3,RECTWIDTH*16);
+  s_faces_layer[0] = create_bitmap_layer(s_faces_bitmap[0], window_layer, c_x - RECTWIDTH,c_x - RECTWIDTH*18,RECTWIDTH*3,RECTWIDTH*16);
   s_faces_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM2);   
-  s_faces_layer[1] = create_bitmap_layer(s_faces_bitmap[1], window_layer, RECTWIDTH*17,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*19);
+  s_faces_layer[1] = create_bitmap_layer(s_faces_bitmap[1], window_layer, c_x - RECTWIDTH,c_x + RECTWIDTH,RECTWIDTH*3,RECTWIDTH*19);
   s_faces_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM3);    
-  s_faces_layer[2] = create_bitmap_layer(s_faces_bitmap[2], window_layer, RECTWIDTH*20,RECTWIDTH*16,RECTWIDTH*16,RECTWIDTH*3);  
+  s_faces_layer[2] = create_bitmap_layer(s_faces_bitmap[2], window_layer, c_x + RECTWIDTH*2, c_x - RECTWIDTH*2,RECTWIDTH*16,RECTWIDTH*3);  
   s_faces_bitmap[3] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM4);     
-  s_faces_layer[3] = create_bitmap_layer(s_faces_bitmap[3], window_layer, 0,RECTWIDTH*16,RECTWIDTH*17,RECTWIDTH*3);
+  s_faces_layer[3] = create_bitmap_layer(s_faces_bitmap[3], window_layer, c_x - RECTWIDTH*18,c_x - RECTWIDTH*2,RECTWIDTH*17,RECTWIDTH*3);
   s_faces_bitmap[4] = gbitmap_create_with_resource(RESOURCE_ID_BG_CENTER);     
-  s_faces_layer[4] = create_bitmap_layer(s_faces_bitmap[4], window_layer, RECTWIDTH*17,RECTWIDTH*16,RECTWIDTH*3,RECTWIDTH*3);
+  s_faces_layer[4] = create_bitmap_layer(s_faces_bitmap[4], window_layer,  c_x - RECTWIDTH,c_x - RECTWIDTH*2,RECTWIDTH*3,RECTWIDTH*3);
   s_faces_bitmap[5] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE);     
-  s_faces_layer[5] = create_bitmap_layer(s_faces_bitmap[5], window_layer, RECTWIDTH*4,RECTWIDTH*3,RECTWIDTH*13,RECTWIDTH*13);
+  s_faces_layer[5] = create_bitmap_layer(s_faces_bitmap[5], window_layer, c_x - RECTWIDTH*14,c_x - RECTWIDTH*15,RECTWIDTH*13,RECTWIDTH*13);
   s_faces_bitmap[6] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE2);     
-  s_faces_layer[6] = create_bitmap_layer(s_faces_bitmap[6], window_layer, RECTWIDTH*20,RECTWIDTH*3,RECTWIDTH*13,RECTWIDTH*13);
+  s_faces_layer[6] = create_bitmap_layer(s_faces_bitmap[6], window_layer, c_x + RECTWIDTH*2,c_x - RECTWIDTH*15,RECTWIDTH*13,RECTWIDTH*13);
   s_faces_bitmap[7] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE3);     
-  s_faces_layer[7] = create_bitmap_layer(s_faces_bitmap[7], window_layer, RECTWIDTH*20,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13);
+  s_faces_layer[7] = create_bitmap_layer(s_faces_bitmap[7], window_layer, c_x + RECTWIDTH*2,c_x + RECTWIDTH,RECTWIDTH*13,RECTWIDTH*13);
   s_faces_bitmap[8] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE4);     
-  s_faces_layer[8] = create_bitmap_layer(s_faces_bitmap[8], window_layer, RECTWIDTH*4,RECTWIDTH*19,RECTWIDTH*13,RECTWIDTH*13);
+  s_faces_layer[8] = create_bitmap_layer(s_faces_bitmap[8], window_layer, c_x - RECTWIDTH*14,c_x + RECTWIDTH,RECTWIDTH*13,RECTWIDTH*13);
 
   s_sides_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_sides_layer[0] = create_bitmap_layer(s_sides_bitmap[0], window_layer, 0,0,RECTWIDTH*4,RECTWIDTH*16);
+  s_sides_layer[0] = create_bitmap_layer(s_sides_bitmap[0], window_layer, c_x - RECTWIDTH*18,c_x - RECTWIDTH*18,RECTWIDTH*4,RECTWIDTH*16);
   s_sides_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_sides_layer[1] = create_bitmap_layer(s_sides_bitmap[1], window_layer, 0,RECTWIDTH*19,RECTWIDTH*4,RECTWIDTH*13);
+  s_sides_layer[1] = create_bitmap_layer(s_sides_bitmap[1], window_layer, c_x - RECTWIDTH*18,c_x + RECTWIDTH,RECTWIDTH*4,RECTWIDTH*13);
   s_sides_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_sides_layer[2] = create_bitmap_layer(s_sides_bitmap[2], window_layer, RECTWIDTH*33,0,RECTWIDTH*3,RECTWIDTH*16);
+  s_sides_layer[2] = create_bitmap_layer(s_sides_bitmap[2], window_layer, c_x + RECTWIDTH*15,c_x - RECTWIDTH*18,RECTWIDTH*3,RECTWIDTH*16);
   s_sides_bitmap[3] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_sides_layer[3] = create_bitmap_layer(s_sides_bitmap[3], window_layer, RECTWIDTH*33,RECTWIDTH*19,RECTWIDTH*3,RECTWIDTH*13);
+  s_sides_layer[3] = create_bitmap_layer(s_sides_bitmap[3], window_layer, c_x + RECTWIDTH*15,c_x + RECTWIDTH,RECTWIDTH*3,RECTWIDTH*13);
   s_sides_bitmap[4] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_sides_layer[4] = create_bitmap_layer(s_sides_bitmap[4], window_layer, RECTWIDTH*4,0,RECTWIDTH*13,RECTWIDTH*3);
+  s_sides_layer[4] = create_bitmap_layer(s_sides_bitmap[4], window_layer, c_x - RECTWIDTH*14,c_x - RECTWIDTH*18,RECTWIDTH*13,RECTWIDTH*3);
   s_sides_bitmap[5] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_sides_layer[5] = create_bitmap_layer(s_sides_bitmap[5], window_layer, RECTWIDTH*20,0,RECTWIDTH*13,RECTWIDTH*3);
+  s_sides_layer[5] = create_bitmap_layer(s_sides_bitmap[5], window_layer, c_x + RECTWIDTH*2,c_x - RECTWIDTH*18,RECTWIDTH*13,RECTWIDTH*3);
  
   s_details_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_details_layer[0] = create_bitmap_layer(s_details_bitmap[0], window_layer, 0,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
+  s_details_layer[0] = create_bitmap_layer(s_details_bitmap[0], window_layer, c_x - RECTWIDTH*18,c_x + RECTWIDTH*14,RECTWIDTH*17,RECTWIDTH*6);
   s_details_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_details_layer[1] = create_bitmap_layer(s_details_bitmap[1], window_layer, RECTWIDTH*20,RECTWIDTH*32,RECTWIDTH*17,RECTWIDTH*6);
+  s_details_layer[1] = create_bitmap_layer(s_details_bitmap[1], window_layer, c_x + RECTWIDTH*2,c_x + RECTWIDTH*14,RECTWIDTH*17,RECTWIDTH*6);
   s_details_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_DATE);     
-  s_details_layer[2] = create_bitmap_layer(s_details_bitmap[2], window_layer, 0,RECTWIDTH*38,RECTWIDTH*36,RECTWIDTH*4); 
+  s_details_layer[2] = create_bitmap_layer(s_details_bitmap[2], window_layer, c_x - RECTWIDTH*18,datelayer_y,RECTWIDTH*36,RECTWIDTH*4); 
+  #endif
   
   
   
@@ -618,7 +676,7 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, s_hands_layer);
   
   //create date layer
-  s_date_layer = layer_create(GRect((WIDTH/2-1)*RECTWIDTH, (WIDTH+2)*RECTWIDTH,20*RECTWIDTH,4*RECTWIDTH));
+  s_date_layer = layer_create(GRect(daylayer_x,daylayer_y,20*RECTWIDTH,4*RECTWIDTH));
  // layer_set_update_proc(s_date_layer, date_update_proc);
   layer_add_child(window_layer, s_date_layer);
   
@@ -630,12 +688,12 @@ static void main_window_load(Window *window) {
   }
     
   //create day of week layer
-  s_day_layer = bitmap_layer_create(GRect((WIDTH/2-1)*RECTWIDTH, (WIDTH+2)*RECTWIDTH,20*RECTWIDTH,4*RECTWIDTH));
+  s_day_layer = bitmap_layer_create(GRect(daylayer_x,daylayer_y,20*RECTWIDTH,4*RECTWIDTH));
   layer_add_child(window_layer, bitmap_layer_get_layer(s_day_layer));
   layer_set_hidden(bitmap_layer_get_layer(s_day_layer), true);
   
   //create temperature layer
-  s_temp_layer = layer_create(GRect(2*RECTWIDTH, (WIDTH+2)*RECTWIDTH,16*RECTWIDTH,4*RECTWIDTH));
+  s_temp_layer = layer_create(GRect(batlayer_x + RECTWIDTH, batlayer_y - RECTWIDTH,17*RECTWIDTH,5*RECTWIDTH));
   layer_add_child(window_layer, s_temp_layer);
   
   memset(&s_temp_digits_layer, 0, sizeof(s_temp_digits_layer));
@@ -648,12 +706,12 @@ static void main_window_load(Window *window) {
   layer_set_hidden(s_temp_layer, true);
   
   //create battery layer
-  s_battery_layer = layer_create(GRect(RECTWIDTH, (WIDTH+3)*RECTWIDTH,13*RECTWIDTH,3*RECTWIDTH));
+  s_battery_layer = layer_create(GRect(batlayer_x, batlayer_y,13*RECTWIDTH,3*RECTWIDTH));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   layer_add_child(window_layer, s_battery_layer);
   
   //create bluetooth layer
-  s_bt_layer = layer_create(GRect(RECTWIDTH, (WIDTH-4)*RECTWIDTH,7*RECTWIDTH,7*RECTWIDTH));
+  s_bt_layer = layer_create(GRect(bt_x, bt_y,7*RECTWIDTH,7*RECTWIDTH));
   layer_add_child(window_layer, s_bt_layer);  
 
   //Bluetooth img

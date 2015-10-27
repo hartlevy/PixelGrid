@@ -1,9 +1,16 @@
 #include <pebble.h>
 
+#if defined(PBL_RECT)
 #define RECTWIDTH 4
 #define RECTHEIGHT  4
 #define WIDTH (144 / RECTWIDTH)
 #define HEIGHT (168 / RECTHEIGHT)
+#elif defined(PBL_ROUND)
+#define RECTWIDTH 4
+#define RECTHEIGHT 4
+#define WIDTH (180 / RECTWIDTH)
+#define HEIGHT (180 / RECTHEIGHT)
+#endif
 #define NUM_COLOR 8
 #define KEY_TEMPERATURE 2
 #define KEY_HOUR_COLOR 3

@@ -21,6 +21,14 @@
     "resources": {
         "media": [
             {
+                "file": "images/bg_round.png",
+                "name": "BG_ROUND",
+                "targetPlatforms": [
+                    "chalk"
+                ],
+                "type": "png"
+            },
+            {
                 "file": "images/7B.png",
                 "name": "DIGIT7B",
                 "type": "png"
@@ -38,9 +46,6 @@
             {
                 "file": "images/bgarm2.png",
                 "name": "BG_ARM2",
-                "targetPlatforms": [
-                    "basalt"
-                ],
                 "type": "png"
             },
             {
@@ -86,9 +91,6 @@
             {
                 "file": "images/bgcenter.png",
                 "name": "BG_CENTER",
-                "targetPlatforms": [
-                    "basalt"
-                ],
                 "type": "png"
             },
             {
@@ -237,7 +239,8 @@
     "sdkVersion": "3",
     "shortName": "PixelGrid",
     "targetPlatforms": [
-        "basalt"
+        "basalt",
+        "chalk"
     ],
     "uuid": "61b914b2-fbb6-4b03-ab0a-eb668b4f3441",
     "versionLabel": "2.0",
