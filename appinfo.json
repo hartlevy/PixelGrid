@@ -1,13 +1,16 @@
 {
     "appKeys": {
         "KEY_BT_LOGO_TYPE": 8,
+        "KEY_DATE_FORMAT": 12,
         "KEY_HIDE_SECONDS": 7,
         "KEY_HOUR_COLOR": 3,
         "KEY_MINUTE_COLOR": 4,
         "KEY_SECOND_COLOR": 5,
         "KEY_SHOW_ANIMATION": 9,
+        "KEY_SQUARE_FACE": 11,
         "KEY_TEMPERATURE": 2,
         "KEY_TEMP_SCALE": 6,
+        "KEY_WEATHER_MODE": 10,
         "isConfig": 1,
         "isWeather": 0
     },
@@ -21,131 +24,8 @@
     "resources": {
         "media": [
             {
-                "file": "images/bg_round.png",
-                "name": "BG_ROUND",
-                "targetPlatforms": [
-                    "chalk"
-                ],
-                "type": "png"
-            },
-            {
-                "file": "images/7B.png",
-                "name": "DIGIT7B",
-                "type": "png"
-            },
-            {
-                "file": "images/bgarm1.png",
-                "name": "BG_ARM1",
-                "type": "png"
-            },
-            {
-                "file": "images/degree.png",
-                "name": "DEGREE",
-                "type": "png"
-            },
-            {
-                "file": "images/bgarm2.png",
-                "name": "BG_ARM2",
-                "type": "png"
-            },
-            {
-                "file": "images/fri.png",
-                "name": "FRI",
-                "type": "png"
-            },
-            {
-                "file": "images/bgarm3.png",
-                "name": "BG_ARM3",
-                "type": "png"
-            },
-            {
-                "file": "images/bt2.png",
-                "name": "BT2",
-                "type": "png"
-            },
-            {
-                "file": "images/bgdrar.png",
-                "name": "BG_FACE",
-                "type": "png"
-            },
-            {
-                "file": "images/0.png",
-                "name": "DIGIT0",
-                "type": "png"
-            },
-            {
-                "file": "images/bgdraw2.png",
-                "name": "BG_FACE2",
-                "type": "png"
-            },
-            {
-                "file": "images/9.png",
-                "name": "DIGIT9",
-                "type": "png"
-            },
-            {
-                "file": "images/6.png",
-                "name": "DIGIT6",
-                "type": "png"
-            },
-            {
-                "file": "images/bgcenter.png",
-                "name": "BG_CENTER",
-                "type": "png"
-            },
-            {
-                "file": "images/bgdraw4.png",
-                "name": "BG_FACE4",
-                "type": "png"
-            },
-            {
-                "file": "images/tue.png",
-                "name": "TUE",
-                "type": "png"
-            },
-            {
-                "file": "images/8.png",
-                "name": "DIGIT8",
-                "type": "png"
-            },
-            {
-                "file": "images/2B.png",
-                "name": "DIGIT2B",
-                "type": "png"
-            },
-            {
-                "file": "images/bgdraw3.png",
-                "name": "BG_FACE3",
-                "type": "png"
-            },
-            {
-                "file": "images/sat.png",
-                "name": "SAT",
-                "type": "png"
-            },
-            {
-                "file": "images/mon.png",
-                "name": "MON",
-                "type": "png"
-            },
-            {
-                "file": "images/1.png",
-                "name": "DIGIT1",
-                "type": "png"
-            },
-            {
-                "file": "images/bgarm4.png",
-                "name": "BG_ARM4",
-                "type": "png"
-            },
-            {
-                "file": "images/3.png",
-                "name": "DIGIT3",
-                "type": "png"
-            },
-            {
-                "file": "images/neg.png",
-                "name": "NEGATIVE",
+                "file": "images/BGsquare.png",
+                "name": "BG_SQUARE",
                 "type": "png"
             },
             {
@@ -154,33 +34,59 @@
                 "type": "png"
             },
             {
-                "file": "images/4B.png",
-                "name": "DIGIT4B",
+                "file": "images/tue.png",
+                "name": "TUE",
                 "type": "png"
             },
             {
-                "file": "images/5.png",
-                "name": "DIGIT5",
-                "type": "png"
-            },
-            {
-                "file": "images/4.png",
-                "name": "DIGIT4",
-                "type": "png"
-            },
-            {
-                "file": "images/2.png",
-                "name": "DIGIT2",
-                "type": "png"
-            },
-            {
-                "file": "images/bgpm.png",
-                "name": "BG_PM",
+                "file": "images/thu.png",
+                "name": "THU",
                 "type": "png"
             },
             {
                 "file": "images/sun.png",
                 "name": "SUN",
+                "type": "png"
+            },
+            {
+                "file": "images/slash.png",
+                "name": "SLASH",
+                "type": "png"
+            },
+            {
+                "file": "images/sat.png",
+                "name": "SAT",
+                "type": "png"
+            },
+            {
+                "file": "images/neg.png",
+                "name": "NEGATIVE",
+                "type": "png"
+            },
+            {
+                "file": "images/mon.png",
+                "name": "MON",
+                "type": "png"
+            },
+            {
+                "file": "images/icon.png",
+                "menuIcon": true,
+                "name": "iconPNG",
+                "type": "png"
+            },
+            {
+                "file": "images/fri.png",
+                "name": "FRI",
+                "type": "png"
+            },
+            {
+                "file": "images/degree.png",
+                "name": "DEGREE",
+                "type": "png"
+            },
+            {
+                "file": "images/bt2.png",
+                "name": "BT2",
                 "type": "png"
             },
             {
@@ -194,14 +100,8 @@
                 "type": "png"
             },
             {
-                "file": "images/icon.png",
-                "menuIcon": true,
-                "name": "iconPNG",
-                "type": "png"
-            },
-            {
-                "file": "images/bgdate.png",
-                "name": "BG_DATE",
+                "file": "images/bgside2.png",
+                "name": "BG_SIDE2",
                 "type": "png"
             },
             {
@@ -210,18 +110,82 @@
                 "type": "png"
             },
             {
-                "file": "images/thu.png",
-                "name": "THU",
+                "file": "images/bgpm.png",
+                "name": "BG_PM",
                 "type": "png"
             },
             {
-                "file": "images/1B.png",
-                "name": "DIGIT1B",
+                "file": "images/bgdraw4.png",
+                "name": "BG_FACE4",
                 "type": "png"
             },
             {
-                "file": "images/slash.png",
-                "name": "SLASH",
+                "file": "images/bgdraw3.png",
+                "name": "BG_FACE3",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdraw2.png",
+                "name": "BG_FACE2",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdrar.png",
+                "name": "BG_FACE",
+                "type": "png"
+            },
+            {
+                "file": "images/bgdate.png",
+                "name": "BG_DATE",
+                "type": "png"
+            },
+            {
+                "file": "images/bgcenter.png",
+                "name": "BG_CENTER",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm4.png",
+                "name": "BG_ARM4",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm3.png",
+                "name": "BG_ARM3",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm2.png",
+                "name": "BG_ARM2",
+                "type": "png"
+            },
+            {
+                "file": "images/bgarm1.png",
+                "name": "BG_ARM1",
+                "type": "png"
+            },
+            {
+                "file": "images/bg_round.png",
+                "name": "BG_ROUND",
+                "targetPlatforms": [
+                    "basalt",
+                    "chalk"
+                ],
+                "type": "png"
+            },
+            {
+                "file": "images/9.png",
+                "name": "DIGIT9",
+                "type": "png"
+            },
+            {
+                "file": "images/8.png",
+                "name": "DIGIT8",
+                "type": "png"
+            },
+            {
+                "file": "images/7B.png",
+                "name": "DIGIT7B",
                 "type": "png"
             },
             {
@@ -230,8 +194,53 @@
                 "type": "png"
             },
             {
-                "file": "images/bgside2.png",
-                "name": "BG_SIDE2",
+                "file": "images/6.png",
+                "name": "DIGIT6",
+                "type": "png"
+            },
+            {
+                "file": "images/5.png",
+                "name": "DIGIT5",
+                "type": "png"
+            },
+            {
+                "file": "images/4B.png",
+                "name": "DIGIT4B",
+                "type": "png"
+            },
+            {
+                "file": "images/4.png",
+                "name": "DIGIT4",
+                "type": "png"
+            },
+            {
+                "file": "images/3.png",
+                "name": "DIGIT3",
+                "type": "png"
+            },
+            {
+                "file": "images/2B.png",
+                "name": "DIGIT2B",
+                "type": "png"
+            },
+            {
+                "file": "images/2.png",
+                "name": "DIGIT2",
+                "type": "png"
+            },
+            {
+                "file": "images/1B.png",
+                "name": "DIGIT1B",
+                "type": "png"
+            },
+            {
+                "file": "images/1.png",
+                "name": "DIGIT1",
+                "type": "png"
+            },
+            {
+                "file": "images/0.png",
+                "name": "DIGIT0",
                 "type": "png"
             }
         ]
@@ -243,7 +252,7 @@
         "chalk"
     ],
     "uuid": "61b914b2-fbb6-4b03-ab0a-eb668b4f3441",
-    "versionLabel": "2.0",
+    "versionLabel": "3.0",
     "watchapp": {
         "watchface": true
     }

@@ -5,14 +5,8 @@
 static Window *s_main_window;
 static Layer *s_hands_layer, *s_battery_layer, *s_bt_layer, *s_date_layer, *s_temp_layer;
 
-static BitmapLayer *s_faces_layer[9];
-static GBitmap *s_faces_bitmap[9];
-
-static BitmapLayer *s_sides_layer[6];
-static GBitmap *s_sides_bitmap[6];
-
-static BitmapLayer *s_details_layer[3];
-static GBitmap *s_details_bitmap[3];
+static BitmapLayer *s_bg_layer;
+static GBitmap *s_bg_bitmap;
 
 static BitmapLayer *s_date_digits_layer[5];
 static GBitmap *s_date_digits_bitmap[5];
@@ -34,6 +28,9 @@ static int temp_scale;
 static int date_format;
 static bool hide_second_hand;
 static bool show_animation;
+static int weather_mode;
+static bool got_weather = false;
+static bool square_face;
 
 static int tap_counter = -1;
 static int hour_pos = 0;
@@ -85,6 +82,7 @@ static void set_container_image(GBitmap **bmp_image, BitmapLayer *bmp_layer, con
   };
 
 	bitmap_layer_set_bitmap(bmp_layer, *bmp_image);
+  bitmap_layer_set_compositing_mode(bmp_layer, GCompOpSet);
 	layer_set_frame(bitmap_layer_get_layer(bmp_layer), frame);
   
   if (old_image != NULL) {
@@ -99,7 +97,8 @@ static BitmapLayer* create_bitmap_layer(GBitmap *bitmap, Layer *window_layer,
     BitmapLayer* bmp_layer = bitmap_layer_create(frame);
     bitmap_layer_set_background_color(bmp_layer,GColorBlack);
     bitmap_layer_set_bitmap(bmp_layer, bitmap);  
-    //replace_gbitmap_color(GColorOxfordBlue, GColorBlack, bitmap, bmp_layer);  
+    bitmap_layer_set_compositing_mode(bmp_layer, GCompOpSet);
+  
     layer_add_child(window_layer, bitmap_layer_get_layer(bmp_layer));  
     return bmp_layer;
 }
@@ -191,9 +190,23 @@ static void drawAliasLine(Layer *layer, uint8_t x0, uint8_t y0,uint8_t x1,uint8_
 
 
 static GPoint createHand(int32_t angle, int16_t length, int x, int y){
+  int32_t sin = sin_lookup(angle);
+  int32_t cos = cos_lookup(angle);
+  int32_t corr = TRIG_MAX_RATIO;
+  
+  //square face correction
+  #if defined(PBL_RECT)
+  if(square_face){
+    corr = abs(cos);
+    if((float)corr/0.707 < TRIG_MAX_RATIO){
+      corr = abs(sin);
+    }
+  }
+  #endif
+  
   GPoint hand = {
-    .x = (int16_t)(sin_lookup(angle) * length / TRIG_MAX_RATIO) + x,
-    .y = (int16_t)(-cos_lookup(angle) * length / TRIG_MAX_RATIO) + y,
+    .x = (int16_t)((sin * length)/corr) + x,
+    .y = (int16_t)((-cos * length)/corr) + y,
   };
   return hand;
 }
@@ -263,7 +276,7 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
   }
   
   // Draw PM
-  if(t->tm_hour >= 0){  
+  if(t->tm_hour >= 12){  
     graphics_context_set_fill_color(ctx, GColorYellow); 
     draw_shape(layer, PM_POINTS.points, PM_POINTS.num_points, pm_x, pm_y, ctx);  
   }    
@@ -344,15 +357,16 @@ static void update_date(){
   
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
-  uint8_t month = t->tm_mon;
+  uint8_t month = t->tm_mon + 1;
   uint8_t day = t->tm_mday;
   uint8_t wday = t->tm_wday;
 
   if(date_format == MMDD_DATE_FORMAT){
     swap(&month,&day);
   }
-  uint8_t m1 = (month+1)/10;
-  uint8_t m2 = (month+1)%10;
+
+  uint8_t m1 = (month)/10;
+  uint8_t m2 = (month)%10;
   uint8_t d1 = day/10;
   uint8_t d2 = day%10;
   
@@ -422,8 +436,8 @@ static void handle_second_tick(struct tm *t, TimeUnits units_changed) {
       update_date();
   }
   
-  // Get weather update every 30 minutes
-  if(t->tm_min % 30 == 0 && t->tm_sec % 60 == 0) {
+  // Get weather update every 30*weather_mode minutes
+  if((got_weather == false  || (t->tm_min % 30*weather_mode == 0 && t->tm_sec % 60 == 0 && weather_mode < 3)) && weather_mode > 0 ) {
     request_temperature();
   }  
   
@@ -440,7 +454,6 @@ static void parse_config_message(DictionaryIterator *iterator, void *context){
   
   Tuple *t = dict_read_first(iterator);
   
-APP_LOG(APP_LOG_LEVEL_ERROR, "configgingg!!");  
     // For all items
   while(t != NULL) {
     // Which key was received?
@@ -480,7 +493,33 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "configgingg!!");
     case KEY_SECOND_COLOR:
       seconds_color = (int)t->value->int32;
       persist_write_int(KEY_SECOND_COLOR, seconds_color);                                       
-      break;      
+      break;     
+    case KEY_WEATHER_MODE:
+      if(weather_mode == 0 && (int)t->value->int32 > 0){
+        request_temperature();
+      }
+      weather_mode = (int)t->value->int32;              
+      persist_write_int(KEY_WEATHER_MODE, weather_mode);   
+      break;  
+    case KEY_DATE_FORMAT:
+      if(date_format != (int)t->value->int32){
+        date_format = (int)t->value->int32;        
+        update_date();
+      }
+      persist_write_int(KEY_DATE_FORMAT, date_format);   
+      break;  
+    case KEY_SQUARE_FACE:
+      square_face = (int)t->value->int32;      
+      #if defined PBL_RECT
+      if(square_face == true){
+        set_container_image(&s_bg_bitmap, s_bg_layer, RESOURCE_ID_BG_SQUARE, 0, 0);
+      }
+      else{
+        set_container_image(&s_bg_bitmap, s_bg_layer, RESOURCE_ID_BG_ROUND, 0, 0);        
+      }
+      #endif
+      persist_write_int(KEY_SQUARE_FACE, square_face);   
+      break;        
     default:
       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
       break;
@@ -493,11 +532,15 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "configgingg!!");
 }
 
 static void parse_weather_message(DictionaryIterator *iterator, void *context){
+  if(weather_mode == 0){
+    return;
+  }
   int temperature = 0;
   bool got_temperature = false;
   bool neg_temp = false;  
   
-      APP_LOG(APP_LOG_LEVEL_ERROR, "Getting weather");
+  APP_LOG(APP_LOG_LEVEL_ERROR, "Getting weather");
+  got_weather = true;
   
   Tuple *t = dict_read_first(iterator);
 
@@ -572,16 +615,14 @@ static void parse_weather_message(DictionaryIterator *iterator, void *context){
 }
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {  
-  // Read first item
   Tuple *weather_tuple = dict_find(iterator, WEATHER_MESSAGE);
-  //Tuple *config_tuple = dict_find(iterator, CONFIG_MESSAGE);
   
   if((int)weather_tuple->value->int32 == 1){
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Get weather");
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Got weather");
     parse_weather_message(iterator,  context);
   }
   else{
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Get config");    
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Got config");    
     parse_config_message(iterator,  context);
   }
 }
@@ -605,7 +646,6 @@ static void main_window_load(Window *window) {
   GRect dummy_frame = { {0, 0}, {0, 0} };
   
   uint8_t c_x = RECTWIDTH*(int)(bounds.size.w/(2*RECTWIDTH));
-  //uint8_t datelayer_y = c_x + RECTWIDTH*20;
   uint8_t batlayer_y = c_x + RECTWIDTH*21;  
   uint8_t batlayer_x = RECTWIDTH;  
   uint8_t daylayer_y = c_x + RECTWIDTH*20;  
@@ -613,7 +653,6 @@ static void main_window_load(Window *window) {
   uint8_t bt_y = c_x + RECTWIDTH*14;  
   uint8_t bt_x = RECTWIDTH;    
   #if defined(PBL_ROUND)
-  //datelayer_y = 0;
   batlayer_y = 2*RECTWIDTH;
   batlayer_x = c_x - 6*RECTWIDTH;
   daylayer_y = c_x + RECTWIDTH*13;  
@@ -621,51 +660,19 @@ static void main_window_load(Window *window) {
   bt_x = c_x - 3*RECTWIDTH;
   bt_y = c_x - RECTWIDTH*17;
   
-  s_faces_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_ROUND);  
-  s_faces_layer[0] = create_bitmap_layer(s_faces_bitmap[0], window_layer, 0,0,RECTWIDTH*WIDTH,RECTWIDTH*HEIGHT);
+  s_bg_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_ROUND);  
+  s_bg_layer = create_bitmap_layer(s_bg_bitmap, window_layer, 0,0,RECTWIDTH*WIDTH,RECTWIDTH*HEIGHT);
     
   #elif defined (PBL_RECT)
   //create bg layers
-  uint8_t datelayer_y = c_x + RECTWIDTH*20;
   
-  s_faces_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM1);  
-  s_faces_layer[0] = create_bitmap_layer(s_faces_bitmap[0], window_layer, c_x - RECTWIDTH,c_x - RECTWIDTH*18,RECTWIDTH*3,RECTWIDTH*16);
-  s_faces_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM2);   
-  s_faces_layer[1] = create_bitmap_layer(s_faces_bitmap[1], window_layer, c_x - RECTWIDTH,c_x + RECTWIDTH,RECTWIDTH*3,RECTWIDTH*19);
-  s_faces_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM3);    
-  s_faces_layer[2] = create_bitmap_layer(s_faces_bitmap[2], window_layer, c_x + RECTWIDTH*2, c_x - RECTWIDTH*2,RECTWIDTH*16,RECTWIDTH*3);  
-  s_faces_bitmap[3] = gbitmap_create_with_resource(RESOURCE_ID_BG_ARM4);     
-  s_faces_layer[3] = create_bitmap_layer(s_faces_bitmap[3], window_layer, c_x - RECTWIDTH*18,c_x - RECTWIDTH*2,RECTWIDTH*17,RECTWIDTH*3);
-  s_faces_bitmap[4] = gbitmap_create_with_resource(RESOURCE_ID_BG_CENTER);     
-  s_faces_layer[4] = create_bitmap_layer(s_faces_bitmap[4], window_layer,  c_x - RECTWIDTH,c_x - RECTWIDTH*2,RECTWIDTH*3,RECTWIDTH*3);
-  s_faces_bitmap[5] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE);     
-  s_faces_layer[5] = create_bitmap_layer(s_faces_bitmap[5], window_layer, c_x - RECTWIDTH*14,c_x - RECTWIDTH*15,RECTWIDTH*13,RECTWIDTH*13);
-  s_faces_bitmap[6] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE2);     
-  s_faces_layer[6] = create_bitmap_layer(s_faces_bitmap[6], window_layer, c_x + RECTWIDTH*2,c_x - RECTWIDTH*15,RECTWIDTH*13,RECTWIDTH*13);
-  s_faces_bitmap[7] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE3);     
-  s_faces_layer[7] = create_bitmap_layer(s_faces_bitmap[7], window_layer, c_x + RECTWIDTH*2,c_x + RECTWIDTH,RECTWIDTH*13,RECTWIDTH*13);
-  s_faces_bitmap[8] = gbitmap_create_with_resource(RESOURCE_ID_BG_FACE4);     
-  s_faces_layer[8] = create_bitmap_layer(s_faces_bitmap[8], window_layer, c_x - RECTWIDTH*14,c_x + RECTWIDTH,RECTWIDTH*13,RECTWIDTH*13);
-
-  s_sides_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_sides_layer[0] = create_bitmap_layer(s_sides_bitmap[0], window_layer, c_x - RECTWIDTH*18,c_x - RECTWIDTH*18,RECTWIDTH*4,RECTWIDTH*16);
-  s_sides_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_sides_layer[1] = create_bitmap_layer(s_sides_bitmap[1], window_layer, c_x - RECTWIDTH*18,c_x + RECTWIDTH,RECTWIDTH*4,RECTWIDTH*13);
-  s_sides_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE1);     
-  s_sides_layer[2] = create_bitmap_layer(s_sides_bitmap[2], window_layer, c_x + RECTWIDTH*15,c_x - RECTWIDTH*18,RECTWIDTH*3,RECTWIDTH*16);
-  s_sides_bitmap[3] = gbitmap_create_with_resource(RESOURCE_ID_BG_SIDE2);     
-  s_sides_layer[3] = create_bitmap_layer(s_sides_bitmap[3], window_layer, c_x + RECTWIDTH*15,c_x + RECTWIDTH,RECTWIDTH*3,RECTWIDTH*13);
-  s_sides_bitmap[4] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_sides_layer[4] = create_bitmap_layer(s_sides_bitmap[4], window_layer, c_x - RECTWIDTH*14,c_x - RECTWIDTH*18,RECTWIDTH*13,RECTWIDTH*3);
-  s_sides_bitmap[5] = gbitmap_create_with_resource(RESOURCE_ID_BG_TOP);     
-  s_sides_layer[5] = create_bitmap_layer(s_sides_bitmap[5], window_layer, c_x + RECTWIDTH*2,c_x - RECTWIDTH*18,RECTWIDTH*13,RECTWIDTH*3);
- 
-  s_details_bitmap[0] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_details_layer[0] = create_bitmap_layer(s_details_bitmap[0], window_layer, c_x - RECTWIDTH*18,c_x + RECTWIDTH*14,RECTWIDTH*17,RECTWIDTH*6);
-  s_details_bitmap[1] = gbitmap_create_with_resource(RESOURCE_ID_BG_PM);     
-  s_details_layer[1] = create_bitmap_layer(s_details_bitmap[1], window_layer, c_x + RECTWIDTH*2,c_x + RECTWIDTH*14,RECTWIDTH*17,RECTWIDTH*6);
-  s_details_bitmap[2] = gbitmap_create_with_resource(RESOURCE_ID_BG_DATE);     
-  s_details_layer[2] = create_bitmap_layer(s_details_bitmap[2], window_layer, c_x - RECTWIDTH*18,datelayer_y,RECTWIDTH*36,RECTWIDTH*4); 
+  if(square_face){
+    s_bg_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_SQUARE);  
+  }
+  else{
+    s_bg_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BG_ROUND);  
+  }
+  s_bg_layer = create_bitmap_layer(s_bg_bitmap, window_layer, 0,0,RECTWIDTH*WIDTH,RECTWIDTH*HEIGHT);   
   #endif
   
   
@@ -727,19 +734,8 @@ static void main_window_load(Window *window) {
 }
 
 static void main_window_unload(Window *window) {
-    // Destroy Layers
-  
-  for(int i = 0; i < 9; i++){
-    destroy_bitmap_layer(s_faces_layer[i], s_faces_bitmap[i] );
-  }
-  
-  for(int i = 0; i < 6; i++){
-    destroy_bitmap_layer(s_sides_layer[i], s_sides_bitmap[i] );    
-  }
-  
-  for(int i = 0; i < 3; i++){
-    destroy_bitmap_layer(s_details_layer[i], s_details_bitmap[i] );    
-  }   
+  // Destroy Layers
+  destroy_bitmap_layer(s_bg_layer, s_bg_bitmap );
   
   for(int i = 0; i < 5; i++){
     destroy_bitmap_layer(s_date_digits_layer[i], s_date_digits_bitmap[i] );    
@@ -773,9 +769,14 @@ static void init() {
   date_format = DDMM_DATE_FORMAT;
   hide_second_hand = false;
   show_animation = true;  
+  square_face = false;
+  weather_mode = 1;
   
   if(persist_exists(KEY_SECOND_COLOR)){
     seconds_color = persist_read_int(KEY_SECOND_COLOR);
+  }
+  if(persist_exists(KEY_SQUARE_FACE)){
+    square_face = persist_read_int(KEY_SQUARE_FACE);
   }
   if(persist_exists(KEY_HOUR_COLOR)){
     hours_color = persist_read_int(KEY_HOUR_COLOR);
@@ -787,7 +788,7 @@ static void init() {
     temp_scale = persist_read_int(KEY_TEMP_SCALE);
   }
   if(persist_exists(KEY_BT_LOGO_TYPE)){
-      bt_image_type = persist_read_int(KEY_BT_LOGO_TYPE);
+    bt_image_type = persist_read_int(KEY_BT_LOGO_TYPE);
   }
   if(persist_exists(KEY_SHOW_ANIMATION)){
     show_animation = persist_read_bool(KEY_SHOW_ANIMATION);
@@ -795,9 +796,12 @@ static void init() {
   if(persist_exists(KEY_HIDE_SECONDS)){
     hide_second_hand = persist_read_bool(KEY_HIDE_SECONDS);
   }  
-  /*if(persist_exists(KEY_DATE_FORMAT)){
+  if(persist_exists(KEY_WEATHER_MODE)){
+    weather_mode = persist_read_int(KEY_WEATHER_MODE);
+  }   
+  if(persist_exists(KEY_DATE_FORMAT)){
     date_format = persist_read_int(KEY_DATE_FORMAT);
-  }  */
+  }  
   
   
   // Create main Window element and assign to pointer
@@ -822,15 +826,14 @@ static void init() {
   tick_timer_service_subscribe(SECOND_UNIT, handle_second_tick);
   accel_tap_service_subscribe(tap_handler);  
   battery_state_service_subscribe(battery_handler);
-  bluetooth_connection_service_subscribe(bt_handler);  
-  
+  bluetooth_connection_service_subscribe(bt_handler);    
   
   if(show_animation){
     timer = app_timer_register(delta, (AppTimerCallback) timer_callback, NULL); 
   }else{
     clock_ready = true;
   }
-  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());  
 }
 
 
@@ -839,6 +842,7 @@ static void deinit() {
     accel_tap_service_unsubscribe();
     battery_state_service_unsubscribe();
     bluetooth_connection_service_unsubscribe();
+    app_message_deregister_callbacks();
     // Destroy Window
     window_destroy(s_main_window);
 }

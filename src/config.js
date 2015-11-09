@@ -14,6 +14,10 @@ function updateMenu(conf){
   dict['KEY_BT_LOGO_TYPE'] = parseInt(configData['bt_logo']);
   dict['KEY_SHOW_ANIMATION'] = parseInt(configData['show_animation']);
   dict['KEY_HIDE_SECONDS'] = parseInt(configData['hide_seconds']);
+  dict['KEY_WEATHER_MODE'] = parseInt(configData['temp_update']);
+  dict['KEY_SQUARE_FACE'] = parseInt(configData['square']);
+  dict['KEY_DATE_FORMAT'] = parseInt(configData['date_format']);
+
   
 
   // Send to watchapp
